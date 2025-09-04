@@ -400,7 +400,7 @@ checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 [[package]]
 name = "libcommon"
 version = "0.1.0"
-source = "git+https://github.com/munch1182/p2.git?branch=master#c57c4a56b716ed7e1ef8cd15b176635859c5b572"
+source = "git+https://github.com/munch1182/p2.git?branch=master#f26377922772b2726de049aa560420bc12b6b732"
 dependencies = [
  "anyhow",
  "chrono",
@@ -425,14 +425,14 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.27"
+version = "0.4.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
+checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "macro_log"
 version = "0.1.0"
-source = "git+https://github.com/munch1182/p2.git?branch=master#c57c4a56b716ed7e1ef8cd15b176635859c5b572"
+source = "git+https://github.com/munch1182/p2.git?branch=master#f26377922772b2726de049aa560420bc12b6b732"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -442,7 +442,7 @@ dependencies = [
 [[package]]
 name = "macro_logiferr"
 version = "0.1.0"
-source = "git+https://github.com/munch1182/p2.git?branch=master#c57c4a56b716ed7e1ef8cd15b176635859c5b572"
+source = "git+https://github.com/munch1182/p2.git?branch=master#f26377922772b2726de049aa560420bc12b6b732"
 dependencies = [
  "log",
  "proc-macro2",
@@ -453,7 +453,7 @@ dependencies = [
 [[package]]
 name = "macro_timer"
 version = "0.1.0"
-source = "git+https://github.com/munch1182/p2.git?branch=master#c57c4a56b716ed7e1ef8cd15b176635859c5b572"
+source = "git+https://github.com/munch1182/p2.git?branch=master#f26377922772b2726de049aa560420bc12b6b732"
 dependencies = [
  "log",
  "proc-macro2",

@@ -1,27 +1,46 @@
 use axum::{Router, response::IntoResponse, routing::get};
 use libcommon::prelude::info;
+use std::{cell::RefCell, sync::Arc};
 
-use crate::urlpath::UrlPath;
+use crate::{
+    router::{ApiImpl, AppState},
+    urlpath::UrlPath,
+};
 
-pub struct Admin {}
+pub(crate) struct Admin<'a> {
+    prefix: &'a str,
+    path: RefCell<UrlPath<'a>>,
+}
 
-impl Admin {
-    pub fn new() -> Self {
-        Self {}
+impl<'a> ApiImpl<'a> for Admin<'a> {
+    fn new(parent: &UrlPath<'a>) -> Self {
+        let prefix = "/admin";
+        Self {
+            prefix,
+            path: RefCell::new(parent.new_path_with(prefix)),
+        }
     }
 
-    pub fn router(&self, path: &UrlPath) -> Router {
-        let scan = path.new_path_with("/scan");
-        let list = path.new_path_with("/list");
+    fn router_str(&self) -> String {
+        self.prefix.to_string()
+    }
 
-        info!("admin router: {}", scan.all_path());
-        info!("admin router: {}", list.all_path());
+    fn router(&self) -> Router<Arc<AppState>> {
+        let scan_p = self.path.borrow().new_path_with("/scan");
+        let list_p = self.path.borrow().new_path_with("/list");
+
+        info!("router: {}", scan_p.all_path());
+        info!("router: {}", list_p.all_path());
+
         Router::new()
-            .route(scan.curr_part(), get(Self::admin))
-            .route(list.curr_part(), get(Self::admin))
+            .route(scan_p.curr_part().unwrap_or_default(), get(scan))
+            .route(list_p.curr_part().unwrap_or_default(), get(list))
     }
+}
 
-    async fn admin() -> impl IntoResponse {
-        "Hello, world!"
-    }
+async fn scan() -> impl IntoResponse {
+    "scan"
+}
+async fn list() -> impl IntoResponse {
+    "list"
 }

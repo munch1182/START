@@ -1,22 +1,46 @@
 pub mod router;
 pub mod urlpath;
 
-use axum::Router;
-use libcommon::prelude::Result;
+use libcommon::prelude::{Result, info};
 use serde::Serializer;
 use tokio::net::TcpListener;
 
+use crate::router::AppRouter;
+
 pub struct App {
-    addr: String,
+    host: String,
     _lis: TcpListener,
+}
+
+impl App {
+    pub async fn new() -> Result<Self> {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let host = listener.local_addr()?;
+        Ok(Self {
+            host: format!("http://{host}"),
+            _lis: listener,
+        })
+    }
+
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    pub async fn run(self) -> Result<()> {
+        let server = self.host;
+        info!("Starting server at {server}");
+        let app_router = AppRouter::new(&server);
+        axum::serve(self._lis, app_router.router()).await?;
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.is_human_readable() {
-            write!(f, "http://{}", self.addr)
+            write!(f, "{}", self.host)
         } else {
-            write!(f, "App(http://{})", self.addr)
+            write!(f, "App({})", self.host)
         }
     }
 }
@@ -24,30 +48,10 @@ impl std::fmt::Display for App {
 impl std::fmt::Debug for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if f.is_human_readable() {
-            write!(f, "http://{}", self.addr)
+            write!(f, "{}", self.host)
         } else {
-            write!(f, "App(http://{})", self.addr)
+            write!(f, "App({})", self.host)
         }
-    }
-}
-
-impl App {
-    pub async fn new() -> Result<Self> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
-        let addr = listener.local_addr()?;
-        Ok(Self {
-            addr: addr.to_string(),
-            _lis: listener,
-        })
-    }
-
-    pub fn addr(&self) -> &str {
-        &self.addr
-    }
-
-    pub async fn run(self, app: Router) -> Result<()> {
-        axum::serve(self._lis, app).await?;
-        Ok(())
     }
 }
 
@@ -62,10 +66,10 @@ mod tests {
 
     #[timer]
     #[tokio::test]
-    async fn test_addr() {
+    async fn test_port() {
         log_setup();
         let a = App::new().await.unwrap();
         info!("{a}");
-        assert!(!a.addr.split(':').last().unwrap().is_empty());
+        assert!(!a.host.split(':').last().unwrap().is_empty());
     }
 }
