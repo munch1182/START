@@ -1,11 +1,12 @@
 pub mod router;
 pub mod urlpath;
+mod utils;
 
 use libcommon::prelude::{Result, info};
 use serde::Serializer;
 use tokio::net::TcpListener;
 
-use crate::router::AppRouter;
+use crate::{router::AppRouter, utils::netlog::LogLayer};
 
 pub struct App {
     host: String,
@@ -30,7 +31,8 @@ impl App {
         let server = self.host;
         info!("Starting server at {server}");
         let app_router = AppRouter::new(&server);
-        axum::serve(self._lis, app_router.router()).await?;
+        let router = app_router.router().layer(LogLayer::new());
+        axum::serve(self._lis, router).await?;
         Ok(())
     }
 }

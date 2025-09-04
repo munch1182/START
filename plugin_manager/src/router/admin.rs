@@ -1,11 +1,10 @@
-use axum::{Router, response::IntoResponse, routing::get};
-use libcommon::prelude::info;
-use std::{cell::RefCell, sync::Arc};
-
 use crate::{
-    router::{ApiImpl, AppState},
+    router::{ApiImpl, AppState, info_router},
     urlpath::UrlPath,
 };
+use axum::{Json, Router, response::IntoResponse, routing::get};
+use serde_json::json;
+use std::{cell::RefCell, sync::Arc};
 
 pub(crate) struct Admin<'a> {
     prefix: &'a str,
@@ -29,8 +28,8 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
         let scan_p = self.path.borrow().new_path_with("/scan");
         let list_p = self.path.borrow().new_path_with("/list");
 
-        info!("router: {}", scan_p.all_path());
-        info!("router: {}", list_p.all_path());
+        info_router(&scan_p);
+        info_router(&list_p);
 
         Router::new()
             .route(scan_p.curr_part().unwrap_or_default(), get(scan))
@@ -42,5 +41,5 @@ async fn scan() -> impl IntoResponse {
     "scan"
 }
 async fn list() -> impl IntoResponse {
-    "list"
+    Json(json!({"a":1}))
 }

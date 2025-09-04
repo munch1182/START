@@ -1,18 +1,18 @@
 use crate::{
-    router::{ApiImpl, admin::Admin, plugin::Plugin},
+    router::{ApiImpl, info_router},
     urlpath::UrlPath,
 };
-use axum::Router;
+use axum::{Router, routing::get};
 use std::{cell::RefCell, sync::Arc};
 
-pub(crate) struct ApiV1<'a> {
+pub(crate) struct Plugin<'a> {
     prefix: &'a str,
     path: RefCell<UrlPath<'a>>,
 }
 
-impl<'a> ApiImpl<'a> for ApiV1<'a> {
+impl<'a> ApiImpl<'a> for Plugin<'a> {
     fn new(parent: &UrlPath<'a>) -> Self {
-        let prefix = "/api/v1";
+        let prefix = "/plugin";
         Self {
             prefix,
             path: RefCell::new(parent.new_path_with(prefix)),
@@ -24,10 +24,12 @@ impl<'a> ApiImpl<'a> for ApiV1<'a> {
     }
 
     fn router(&self) -> Router<Arc<super::AppState>> {
-        let admin = Admin::new(&self.path.borrow());
-        let plugin = Plugin::new(&self.path.borrow());
-        Router::new()
-            .nest(&admin.router_str(), admin.router())
-            .nest(&plugin.router_str(), plugin.router())
+        let list = self.path.borrow().new_path_with("/list");
+        info_router(&list);
+        Router::new().route(list.curr_part().unwrap_or_default(), get(scan))
     }
+}
+
+async fn scan() -> String {
+    "scan".to_string()
 }
