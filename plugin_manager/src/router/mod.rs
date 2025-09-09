@@ -1,5 +1,5 @@
 use crate::{router::apiv1::ApiV1, urlpath::UrlPath};
-use axum::{Router, response::IntoResponse, routing::get};
+use axum::{Router, routing::get};
 use libcommon::prelude::{Result, info};
 use std::{
     cell::RefCell,
@@ -8,7 +8,9 @@ use std::{
 
 mod admin;
 mod apiv1;
+mod appstate;
 mod plugin;
+pub use appstate::{AppConfig, AppState};
 
 pub(crate) trait ApiImpl<'a> {
     fn new(parent: &UrlPath<'a>) -> Self;
@@ -16,7 +18,7 @@ pub(crate) trait ApiImpl<'a> {
     fn router(&self) -> Router<Arc<AppState>>;
 }
 
-static APP_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
+pub(crate) static APP_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
 
 pub struct AppRouter<'a> {
     path: RefCell<UrlPath<'a>>,
@@ -30,10 +32,10 @@ impl<'a> AppRouter<'a> {
         }
     }
 
-    pub fn router(&self) -> Router {
+    pub fn router(&self, config: AppConfig) -> Router {
         #[cfg(debug_assertions)]
         let _ = write_http_clear();
-        let state = Arc::new(AppState::new());
+        let state = Arc::new(AppState::new(config));
         let _ = APP_STATE.set(state);
         let v1 = ApiV1::new(&self.path.borrow());
         Router::new()
@@ -43,7 +45,7 @@ impl<'a> AppRouter<'a> {
     }
 }
 
-async fn no_router() -> impl IntoResponse {
+async fn no_router() -> &'static str {
     "Hello, world!"
 }
 
@@ -69,16 +71,4 @@ fn write_http(path: &str) -> Result<()> {
     let mut file = curr_dir!("test_router.http")?;
     let _ = file.write_append(format!("GET {path}\n\n###\n\n").as_bytes());
     Ok(())
-}
-
-#[derive(Clone)]
-pub struct AppState {}
-
-unsafe impl Send for AppState {}
-unsafe impl Sync for AppState {}
-
-impl AppState {
-    fn new() -> Self {
-        Self {}
-    }
 }

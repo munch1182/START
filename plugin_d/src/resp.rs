@@ -2,6 +2,7 @@ use axum::{
     Json,
     response::{IntoResponse, Response},
 };
+use libcommon::prelude::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -18,6 +19,19 @@ impl<T: Serialize> IntoResponse for Resp<T> {
     }
 }
 
+impl<T> From<Result<T>> for Resp<T> {
+    fn from(value: Result<T>) -> Self {
+        match value {
+            Ok(data) => Self::sucess(data),
+            Err(err) => Self {
+                code: 1,
+                msg: format!("{:?}", err),
+                data: None,
+            },
+        }
+    }
+}
+
 impl<T> Resp<T> {
     pub fn sucess(data: T) -> Self {
         Self {
@@ -29,6 +43,14 @@ impl<T> Resp<T> {
 
     pub fn is_success(&self) -> bool {
         self.code == 0
+    }
+
+    pub fn error_with(code: u16, msg: &str) -> Self {
+        Self {
+            code,
+            msg: msg.to_string(),
+            data: None,
+        }
     }
 }
 

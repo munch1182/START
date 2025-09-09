@@ -1,12 +1,15 @@
+mod respres;
 pub mod router;
 pub mod urlpath;
 mod utils;
 
+use crate::{
+    router::{AppConfig, AppRouter},
+    utils::netlog::LogLayer,
+};
 use libcommon::prelude::{Result, info};
 use serde::Serializer;
 use tokio::net::TcpListener;
-
-use crate::{router::AppRouter, utils::netlog::LogLayer};
 
 pub struct App {
     host: String,
@@ -27,11 +30,11 @@ impl App {
         &self.host
     }
 
-    pub async fn run(self) -> Result<()> {
+    pub async fn run(self, config: AppConfig) -> Result<()> {
         let server = self.host;
         info!("Starting server at {server}");
         let app_router = AppRouter::new(&server);
-        let router = app_router.router().layer(LogLayer::new());
+        let router = app_router.router(config).layer(LogLayer::new());
         axum::serve(self._lis, router).await?;
         Ok(())
     }
