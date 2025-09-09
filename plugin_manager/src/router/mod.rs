@@ -10,7 +10,7 @@ mod admin;
 mod apiv1;
 mod appstate;
 mod plugin;
-pub use appstate::{AppConfig, AppState};
+pub use appstate::{AppConfig, AppState, GetExt};
 
 pub(crate) trait ApiImpl<'a> {
     fn new(parent: &UrlPath<'a>) -> Self;

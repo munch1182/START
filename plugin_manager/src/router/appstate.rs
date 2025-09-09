@@ -5,10 +5,13 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
+use crate::pm::PM;
+
 #[derive(Clone)]
 pub struct AppState {
     config: AppConfig,
     version: &'static str,
+    pm: PM,
 }
 
 const VERSION: &str = "0.0.1";
@@ -21,7 +24,16 @@ pub struct AppConfig {
 impl AppState {
     pub(crate) fn new(config: AppConfig) -> Self {
         let version = VERSION;
-        Self { config, version }
+        let pm = PM::new(config.scan_dir.as_os_str());
+        Self {
+            config,
+            version,
+            pm,
+        }
+    }
+
+    pub(crate) fn pm(&self) -> &PM {
+        &self.pm
     }
 
     pub(crate) fn scan_dir(&self) -> &OsStr {
@@ -49,7 +61,7 @@ impl AppConfig {
 }
 
 #[allow(dead_code)]
-pub(crate) trait GetExt<'a, T> {
+pub trait GetExt<'a, T> {
     fn call<U, F>(&'a self, f: F) -> Result<U>
     where
         F: FnOnce(T) -> Option<U>;
