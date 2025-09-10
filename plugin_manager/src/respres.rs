@@ -24,6 +24,23 @@ impl<T: Serialize> From<T> for RespResult<T> {
     }
 }
 
+#[cfg(debug_assertions)]
+impl<T> IntoResponse for RespResult<T>
+where
+    T: Serialize,
+{
+    fn into_response(self) -> Response {
+        match self.inner {
+            Ok(r) => Resp::sucess(r).into_response(),
+            Err(e) => {
+                warn!("error to response: {e}");
+                Resp::<T>::error_with(1, &format!("{e}")).into_response()
+            }
+        }
+    }
+}
+
+#[cfg(not(debug_assertions))]
 impl<T> IntoResponse for RespResult<T>
 where
     T: Serialize,

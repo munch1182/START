@@ -1,13 +1,30 @@
 use crate::{
-    router::{ApiImpl, info_router},
+    pm::PluginId,
+    respres::RespResult,
+    router::{ApiImpl, AppState},
     urlpath::UrlPath,
 };
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    body::Body,
+    extract::{Path, State},
+    http::Request,
+    routing::{any, get},
+};
+use libcommon::newerr;
+use plugin_d::PluginInfo;
+use serde_json::Value;
 use std::{cell::RefCell, sync::Arc};
 
 pub(crate) struct Plugin<'a> {
     prefix: &'a str,
-    path: RefCell<UrlPath<'a>>,
+    _path: RefCell<UrlPath<'a>>,
+}
+
+impl<'a> Plugin<'a> {
+    pub(crate) fn path(&'_ self) -> std::cell::Ref<'_, UrlPath<'a>> {
+        self._path.borrow()
+    }
 }
 
 impl<'a> ApiImpl<'a> for Plugin<'a> {
@@ -15,7 +32,7 @@ impl<'a> ApiImpl<'a> for Plugin<'a> {
         let prefix = "/plugin";
         Self {
             prefix,
-            path: RefCell::new(parent.new_path_with(prefix)),
+            _path: RefCell::new(parent.new_path_with(prefix)),
         }
     }
 
@@ -23,13 +40,31 @@ impl<'a> ApiImpl<'a> for Plugin<'a> {
         self.prefix.to_string()
     }
 
-    fn router(&self) -> Router<Arc<super::AppState>> {
-        let list = self.path.borrow().new_path_with("/list");
-        info_router(&list);
-        Router::new().route(list.curr_part().unwrap_or_default(), get(scan))
+    fn router(&self) -> Router<Arc<AppState>> {
+        Router::new()
+            .route("/{id}", get(plugin_info))
+            .route("/{id}/{*query}", any(plugin))
     }
 }
 
-async fn scan() -> String {
-    "scan".to_string()
+async fn plugin_info(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> RespResult<PluginInfo> {
+    let plugin_id = PluginId::new_by(&id);
+    state
+        .pm()
+        .get(plugin_id)
+        .ok_or(newerr!("plugin {} not found", id))
+        .into()
+}
+
+async fn plugin(
+    State(state): State<Arc<AppState>>,
+    Path((id, path)): Path<(String, String)>,
+    req: Request<Body>,
+) -> RespResult<Value> {
+    let plugin_id = PluginId::new_by(id);
+    let resp = state.pm().handle(plugin_id, path, req);
+    RespResult::from(resp)
 }

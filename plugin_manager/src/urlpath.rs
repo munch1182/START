@@ -52,6 +52,15 @@ impl<'a> UrlPath<'a> {
     }
 
     ///
+    /// 返回上一级的路径
+    ///
+    pub fn parent(&self) -> Self {
+        let mut new = self.new_path();
+        new.path.pop();
+        new
+    }
+
+    ///
     /// 添加一段路径
     ///
     /// ```
@@ -157,5 +166,9 @@ mod tests {
         let last = path.curr_part();
         info!("Last: {:?}", last);
         assert_eq!(last, Some("test3"));
+
+        let last = path.parent();
+        info!("Path: {:?}", last);
+        assert_eq!(last.all_path(), "http://127.0.0.1:800/api/v1");
     }
 }

@@ -530,6 +530,7 @@ dependencies = [
  "axum",
  "libcommon",
  "plugin_d",
+ "serde_json",
 ]
 
 [[package]]

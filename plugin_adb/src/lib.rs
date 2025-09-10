@@ -1,8 +1,22 @@
+use axum::{body::Body, http::Request};
+use libcommon::prelude::Result;
 use plugin_d::PluginInfo;
+use serde_json::{Value, json};
+use std::env::current_dir;
 
 #[unsafe(no_mangle)]
 extern "Rust" fn plugin_info() -> PluginInfo {
     PluginInfo::new("adb", "0.1.0")
+}
+
+#[unsafe(no_mangle)]
+extern "Rust" fn plugin_handle(path: String, _req: Request<Body>) -> Result<Value> {
+    let curr = current_dir()?;
+    let curr = curr.to_str().unwrap_or_default();
+    Ok(json!({
+        "path": path,
+        "curr": curr,
+    }))
 }
 
 #[cfg(test)]

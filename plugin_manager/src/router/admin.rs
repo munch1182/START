@@ -1,10 +1,10 @@
 use crate::{
     respres::RespResult,
-    router::{ApiImpl, AppState, info_router},
+    router::{ApiImpl, AppState, info_router, plugin::Plugin},
     urlpath::UrlPath,
 };
 use axum::{Router, extract::State, routing::get};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::{cell::RefCell, sync::Arc};
 
 pub(crate) struct Admin<'a> {
@@ -35,21 +35,43 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
         info_router(&config_p);
 
         Router::new()
-            .route(scan_p.curr_part().unwrap_or_default(), get(scan))
+            .route(
+                scan_p.curr_part().unwrap_or_default(),
+                get({
+                    let parent = self.path.borrow().parent().all_path();
+                    move |app: State<Arc<AppState>>| scan(app, parent)
+                }),
+            )
             .route(list_p.curr_part().unwrap_or_default(), get(list))
             .route(config_p.curr_part().unwrap_or_default(), get(config))
     }
 }
 
-async fn scan(State(app): State<Arc<AppState>>) -> RespResult<usize> {
-    app.pm().scan().into()
+async fn scan(State(app): State<Arc<AppState>>, parent: String) -> RespResult<usize> {
+    let plugins = app.pm().scan();
+
+    let parent = UrlPath::new(&parent);
+    let plugin = Plugin::new(&parent);
+
+    for ele in &plugins {
+        let plugin_id = plugin.path().new_path_with(ele.as_str());
+        info_router(&plugin_id);
+    }
+
+    plugins.len().into()
 }
 
 async fn list(State(app): State<Arc<AppState>>) -> RespResult<Vec<Value>> {
     app.pm()
-        .list()
+        .info()
         .iter()
-        .map(|p| serde_json::to_value(p).unwrap_or_default())
+        .map(|(id, p)| {
+            json!({
+                "name": p.name,
+                "version": p.version,
+                "id": id.as_str(),
+            })
+        })
         .collect::<Vec<_>>()
         .into()
 }
