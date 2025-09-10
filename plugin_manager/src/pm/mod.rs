@@ -1,29 +1,15 @@
-use std::ffi::OsString;
+mod pm;
 
-use crate::utils::file::scan_dir_find;
+use libcommon::hash;
+use plugin_d::PluginInfo;
+pub use pm::*;
 
-#[derive(Clone)]
-pub(crate) struct PM {
-    scan_dir: OsString,
-}
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PluginId(String);
 
-impl PM {
-    pub fn new(scan_dir: impl Into<OsString>) -> Self {
-        let scan_dir = scan_dir.into();
-        Self { scan_dir }
-    }
-
-    pub fn update_dir(&mut self, new_dir: impl Into<OsString>) {
-        self.scan_dir = new_dir.into();
-        self.scan();
-    }
-
-    pub fn scan(&self) {
-        let files = scan_dir_find(&self.scan_dir, |f| {
-            f.extension().unwrap_or_default() == "dll"
-        });
-        if files.is_empty() {
-            return;
-        }
+impl From<&PluginInfo> for PluginId {
+    fn from(value: &PluginInfo) -> Self {
+        let id = format!("{:x}", hash!(value.name, value.version));
+        Self(id)
     }
 }

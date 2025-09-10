@@ -9,7 +9,9 @@ use serde_json::json;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Resp<T> {
     pub code: u16,
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub msg: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
 }
 
@@ -33,6 +35,7 @@ impl<T> From<Result<T>> for Resp<T> {
 }
 
 impl<T> Resp<T> {
+    #[inline]
     pub fn sucess(data: T) -> Self {
         Self {
             code: 0,
@@ -41,10 +44,12 @@ impl<T> Resp<T> {
         }
     }
 
+    #[inline]
     pub fn is_success(&self) -> bool {
         self.code == 0
     }
 
+    #[inline]
     pub fn error_with(code: u16, msg: &str) -> Self {
         Self {
             code,
@@ -55,6 +60,7 @@ impl<T> Resp<T> {
 }
 
 impl Resp<()> {
+    #[inline]
     pub fn error<S: ToString>(code: u16, msg: S) -> Self {
         Self {
             code,

@@ -1,3 +1,4 @@
+use crate::pm::PM;
 use libcommon::{newerr, prelude::Result};
 use serde_json::{Value, json};
 use std::{
@@ -5,14 +6,14 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use crate::pm::PM;
-
-#[derive(Clone)]
 pub struct AppState {
     config: AppConfig,
     version: &'static str,
     pm: PM,
 }
+
+unsafe impl Send for AppState {}
+unsafe impl Sync for AppState {}
 
 const VERSION: &str = "0.0.1";
 

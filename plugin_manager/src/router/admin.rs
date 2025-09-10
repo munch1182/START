@@ -4,7 +4,6 @@ use crate::{
     urlpath::UrlPath,
 };
 use axum::{Router, extract::State, routing::get};
-use libcommon::newerr;
 use serde_json::Value;
 use std::{cell::RefCell, sync::Arc};
 
@@ -42,12 +41,17 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
     }
 }
 
-async fn scan(State(app): State<Arc<AppState>>) -> RespResult<String> {
-    app.scan_dir().to_string_lossy().to_string().into()
+async fn scan(State(app): State<Arc<AppState>>) -> RespResult<usize> {
+    app.pm().scan().into()
 }
 
-async fn list() -> RespResult<Value> {
-    Err(newerr!("not implemented")).into()
+async fn list(State(app): State<Arc<AppState>>) -> RespResult<Vec<Value>> {
+    app.pm()
+        .list()
+        .iter()
+        .map(|p| serde_json::to_value(p).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .into()
 }
 
 async fn config(State(app): State<Arc<AppState>>) -> RespResult<Value> {
