@@ -20,12 +20,8 @@ pub struct PM {
     scan_dir: OsString,
     libs: RefCell<HashMap<PluginId, Library>>,
     info: RefCell<HashMap<PluginId, PluginInfo>>,
-    handler: RefCell<
-        LruCache<
-            PluginId,
-            Symbol<'static, extern "Rust" fn(String, Request<Body>) -> Result<Value>>,
-        >,
-    >,
+    handler:
+        RefCell<LruCache<PluginId, Symbol<'static, fn(String, Request<Body>) -> Result<Value>>>>,
 }
 
 impl PM {
@@ -73,7 +69,7 @@ impl PM {
         let lib = unsafe { Library::new(file) };
         match lib {
             Ok(lib) => {
-                let info = unsafe { &lib.get::<extern "Rust" fn() -> PluginInfo>(PLUGIN_INFO) };
+                let info = unsafe { &lib.get::<fn() -> PluginInfo>(PLUGIN_INFO) };
                 match info {
                     Ok(i) => {
                         let id = self.add_info(i(), lib);
@@ -90,10 +86,14 @@ impl PM {
 
     fn add_info(&self, info: PluginInfo, lib: Library) -> PluginId {
         let id = PluginId::new_from(&info);
-        let mut libs = self.libs.borrow_mut();
-        if libs.contains_key(&id) {
-            self.remove(&id);
+        {
+            let libs = self.libs.borrow();
+            if libs.contains_key(&id) {
+                drop(libs);
+                self.remove(&id);
+            }
         }
+        let mut libs = self.libs.borrow_mut();
 
         libs.insert(id.clone(), lib);
         let mut infos = self.info.borrow_mut();
