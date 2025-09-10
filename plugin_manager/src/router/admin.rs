@@ -1,9 +1,15 @@
 use crate::{
+    pm::PluginId,
     respres::RespResult,
-    router::{ApiImpl, AppState, info_router, plugin::Plugin},
+    router::{ApiImpl, AppState, info_router, info_router_with_query, plugin::Plugin},
     urlpath::UrlPath,
 };
-use axum::{Router, extract::State, routing::get};
+use axum::{
+    Router,
+    extract::{Query, State},
+    routing::get,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{cell::RefCell, sync::Arc};
 
@@ -30,9 +36,17 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
         let list_p = self.path.borrow().new_path_with("/list");
         let config_p = self.path.borrow().new_path_with("/config");
 
+        let del_p = self.path.borrow().new_path_with("/del");
+
         info_router(&scan_p);
         info_router(&list_p);
         info_router(&config_p);
+        info_router_with_query(
+            &del_p,
+            DelReq {
+                id: String::from("111"),
+            },
+        );
 
         Router::new()
             .route(
@@ -44,7 +58,17 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
             )
             .route(list_p.curr_part().unwrap_or_default(), get(list))
             .route(config_p.curr_part().unwrap_or_default(), get(config))
+            .route(del_p.curr_part().unwrap_or_default(), get(del))
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DelReq {
+    pub id: String,
+}
+
+async fn del(State(app): State<Arc<AppState>>, Query(id): Query<DelReq>) -> RespResult<bool> {
+    app.pm().remove(&PluginId::new_by(id.id)).into()
 }
 
 async fn scan(State(app): State<Arc<AppState>>, parent: String) -> RespResult<usize> {

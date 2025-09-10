@@ -690,6 +690,7 @@ dependencies = [
  "plugin_d",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "tokio",
  "tower",
 ]

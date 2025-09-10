@@ -1,9 +1,6 @@
 use crate::{pm::PluginId, utils::file::scan_dir_find};
 use axum::{body::Body, http::Request};
-use libcommon::{
-    newerr,
-    prelude::{Result, info, warn},
-};
+use libcommon::{newerr, prelude::*};
 use libloading::{Library, Symbol};
 use lru::LruCache;
 use plugin_d::PluginInfo;
@@ -11,7 +8,7 @@ use serde_json::Value;
 use std::{
     cell::{Ref, RefCell},
     collections::HashMap,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     num::NonZeroUsize,
 };
 
@@ -33,15 +30,11 @@ pub struct PM {
 
 impl PM {
     pub fn new(scan_dir: impl Into<OsString>) -> Self {
-        let scan_dir = scan_dir.into();
-        let libs = RefCell::new(HashMap::new());
-        let info = RefCell::new(HashMap::new());
-        let handler = RefCell::new(LruCache::new(NonZeroUsize::new(NUM_CACHE).unwrap()));
         Self {
-            scan_dir,
-            libs,
-            info,
-            handler,
+            scan_dir: scan_dir.into(),
+            libs: RefCell::new(HashMap::new()),
+            info: RefCell::new(HashMap::new()),
+            handler: RefCell::new(LruCache::new(NonZeroUsize::new(NUM_CACHE).unwrap())),
         }
     }
 
@@ -69,24 +62,30 @@ impl PM {
         }
         let mut res = vec![];
         for file in files {
-            let lib = unsafe { Library::new(&file) };
-            match lib {
-                Err(e) => warn!("Failed to load {file:#?} plugin: {e}"),
-                Ok(lib) => {
-                    let info = unsafe { &lib.get::<extern "Rust" fn() -> PluginInfo>(PLUGIN_INFO) };
-                    match info {
-                        Err(e) => warn!("Failed to call plugin_info() from {file:#?}: {e}"),
-                        Ok(i) => {
-                            let info = i();
-                            let id = self.add_info(info, lib);
-                            info!("Loaded plugin {id:?} from {file:#?}");
-                            res.push(id);
-                        }
-                    }
-                }
+            if let Some(id) = self._load_info(&file) {
+                res.push(id);
             }
         }
         res
+    }
+
+    fn _load_info(&self, file: &OsStr) -> Option<PluginId> {
+        let lib = unsafe { Library::new(file) };
+        match lib {
+            Ok(lib) => {
+                let info = unsafe { &lib.get::<extern "Rust" fn() -> PluginInfo>(PLUGIN_INFO) };
+                match info {
+                    Ok(i) => {
+                        let id = self.add_info(i(), lib);
+                        info!("Loaded plugin({id:?}) from {file:#?}");
+                        return Some(id);
+                    }
+                    Err(e) => warn!("Failed to call PLUGIN_INFO info from {file:#?}: {e}"),
+                }
+            }
+            Err(e) => warn!("Failed to load {file:#?} plugin: {e}"),
+        }
+        None
     }
 
     fn add_info(&self, info: PluginInfo, lib: Library) -> PluginId {
@@ -103,10 +102,18 @@ impl PM {
         id
     }
 
-    pub fn remove(&self, id: &PluginId) {
+    pub fn remove(&self, id: &PluginId) -> bool {
+        let mut had_id = false;
+
         self.info.borrow_mut().remove(id);
-        self.libs.borrow_mut().remove(id);
+        let had = self.libs.borrow_mut().remove(id);
+        if let Some(ll) = had {
+            drop(ll);
+            had_id = true;
+        }
         self.handler.borrow_mut().pop(id);
+        warn!("Removing plugin({id:?}): {had_id}");
+        had_id
     }
 
     pub fn get(&self, id: PluginId) -> Option<PluginInfo> {
@@ -117,8 +124,8 @@ impl PM {
         let lib = self.libs.borrow();
         let lib = lib.get(&id).ok_or(newerr!("Plugin {:?} not found", id))?;
         let mut handle = self.handler.borrow_mut();
-        let handle = handle.get(&id).ok_or(libloading::Error::FreeLibraryUnknown);
-        if let Ok(handle) = handle {
+        let handle = handle.get(&id);
+        if let Some(handle) = handle {
             return handle(path, req);
         }
         let handle = unsafe {
