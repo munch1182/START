@@ -1,7 +1,52 @@
 use libcommon::prelude::Result;
-use std::{ffi::OsString, path::Path};
+use plugin_d::{PluginInfo, Res};
+use std::{
+    ffi::{OsStr, OsString},
+    path::Path,
+};
 
-pub(crate) fn scan_dir_find<F>(path: impl AsRef<Path>, find: F) -> Vec<OsString>
+/// 扫描文件夹下所有能够解析为PluginInfo的json文件
+/// 并将json文件路径和解析后的PluginInfo返回
+pub(crate) fn scan_plugin(path: impl AsRef<Path>) -> Vec<PluginInfo> {
+    let jsons = scan_dir_find(path, |p| p.extension().unwrap_or_default() == "json");
+    let mut res = vec![];
+    for json in jsons {
+        if let Ok(mut info) = PluginInfo::from_json(&json) {
+            fix_res_dir(&mut info.res, &json);
+            res.push(info);
+        }
+    }
+    res
+}
+
+fn fix_res_dir(res: &mut Res, file: &OsStr) {
+    // 如果路径已经是绝对路径，不需要修改
+    if Path::new(&res.dir).is_absolute() {
+        return;
+    }
+
+    let parent = Path::new(file).parent().unwrap_or_else(|| Path::new("."));
+    if &res.dir == "." || res.dir.is_empty() {
+        res.dir = parent.to_str().unwrap_or_default().to_string();
+        return;
+    }
+
+    // 获取文件所在的目录
+    let new_res_dir = parent.join(&res.dir);
+
+    // 尝试规范化路径（解析相对路径等）
+    let canonical_path = match new_res_dir.canonicalize() {
+        Ok(path) => path,
+        Err(_) => new_res_dir,
+    };
+
+    // 更新资源目录
+    if let Some(path_str) = canonical_path.to_str() {
+        res.dir = path_str.to_string();
+    }
+}
+
+fn scan_dir_find<F>(path: impl AsRef<Path>, find: F) -> Vec<OsString>
 where
     F: Fn(&Path) -> bool,
 {

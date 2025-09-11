@@ -44,6 +44,9 @@ impl<'a> UrlPath<'a> {
         self.path.last().copied()
     }
 
+    pub fn router_str(&self) -> &str {
+        self.curr_part().unwrap_or_default()
+    }
     ///
     /// 返回传入的host
     ///

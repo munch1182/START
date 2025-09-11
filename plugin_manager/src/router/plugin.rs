@@ -21,12 +21,6 @@ pub(crate) struct Plugin<'a> {
     _path: RefCell<UrlPath<'a>>,
 }
 
-impl<'a> Plugin<'a> {
-    pub(crate) fn path(&'_ self) -> std::cell::Ref<'_, UrlPath<'a>> {
-        self._path.borrow()
-    }
-}
-
 impl<'a> ApiImpl<'a> for Plugin<'a> {
     fn new(parent: &UrlPath<'a>) -> Self {
         let prefix = "/plugin";
@@ -65,6 +59,6 @@ async fn plugin(
     req: Request<Body>,
 ) -> RespResult<Value> {
     let plugin_id = PluginId::new_by(id);
-    let resp = state.pm().handle(plugin_id, path, req);
+    let resp = state.pm().handle(&plugin_id, path, req);
     RespResult::from(resp)
 }

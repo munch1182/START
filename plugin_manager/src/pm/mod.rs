@@ -1,5 +1,4 @@
 mod pmimpl;
-
 use libcommon::hash;
 pub use pmimpl::*;
 
@@ -7,6 +6,12 @@ pub use pmimpl::*;
 pub struct PluginId(String);
 
 impl std::fmt::Debug for PluginId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::fmt::Display for PluginId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }

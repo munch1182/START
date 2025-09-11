@@ -1,3 +1,4 @@
+pub mod config;
 mod pm;
 mod respres;
 pub mod router;
@@ -19,7 +20,16 @@ pub struct App {
 
 impl App {
     pub async fn new() -> Result<Self> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let listener = {
+            #[cfg(debug_assertions)]
+            {
+                TcpListener::bind("127.0.0.1:1234").await?
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                TcpListener::bind("127.0.0.1:0").await?
+            }
+        };
         let host = listener.local_addr()?;
         Ok(Self {
             host: format!("http://{host}"),

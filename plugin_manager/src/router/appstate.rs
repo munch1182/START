@@ -1,10 +1,6 @@
-use crate::pm::PM;
-use libcommon::{newerr, prelude::Result};
+use crate::{config::VERSION, pm::PM};
 use serde_json::{Value, json};
-use std::{
-    ffi::{OsStr, OsString},
-    sync::{Arc, OnceLock},
-};
+use std::ffi::{OsStr, OsString};
 
 pub struct AppState {
     config: AppConfig,
@@ -15,11 +11,10 @@ pub struct AppState {
 unsafe impl Send for AppState {}
 unsafe impl Sync for AppState {}
 
-const VERSION: &str = "0.0.1";
-
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     scan_dir: OsString,
+    fs_dir: OsString,
 }
 
 impl AppState {
@@ -41,6 +36,10 @@ impl AppState {
         &self.config.scan_dir
     }
 
+    pub(crate) fn fs_dir(&self) -> &OsStr {
+        &self.config.fs_dir
+    }
+
     pub(crate) fn version(&self) -> &str {
         self.version
     }
@@ -48,40 +47,17 @@ impl AppState {
     pub(crate) fn config_str(&self) -> Value {
         json!({
             "scan_dir": self.scan_dir().to_string_lossy().to_string(),
+            "fs_dir": self.fs_dir().to_string_lossy().to_string(),
             "version": self.version()
         })
     }
 }
 
 impl AppConfig {
-    pub fn new(scan_dir: impl AsRef<OsStr>) -> Self {
+    pub fn new(scan_dir: impl AsRef<OsStr>, fs_dir: impl AsRef<OsStr>) -> Self {
         Self {
             scan_dir: scan_dir.as_ref().to_os_string(),
+            fs_dir: fs_dir.as_ref().to_os_string(),
         }
-    }
-}
-
-#[allow(dead_code)]
-pub trait GetExt<'a, T> {
-    fn call<U, F>(&'a self, f: F) -> Result<U>
-    where
-        F: FnOnce(T) -> Option<U>;
-
-    fn call_if<U, F>(&'a self, f: F) -> Result<U>
-    where
-        F: FnOnce(T) -> Result<U>,
-    {
-        self.call(|a| f(a).ok())
-    }
-}
-
-impl<'a> GetExt<'a, &'a AppState> for OnceLock<Arc<AppState>> {
-    fn call<U, F>(&'a self, f: F) -> Result<U>
-    where
-        F: FnOnce(&'a AppState) -> Option<U>,
-    {
-        self.get()
-            .and_then(|a| f(a))
-            .ok_or(newerr!("err get APPSTATE"))
     }
 }

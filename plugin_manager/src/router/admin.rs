@@ -1,7 +1,7 @@
 use crate::{
     pm::PluginId,
     respres::RespResult,
-    router::{ApiImpl, AppState, info_router, info_router_with_query, plugin::Plugin},
+    router::{ApiImpl, AppState},
     urlpath::UrlPath,
 };
 use axum::{
@@ -35,30 +35,13 @@ impl<'a> ApiImpl<'a> for Admin<'a> {
         let scan_p = self.path.borrow().new_path_with("/scan");
         let list_p = self.path.borrow().new_path_with("/list");
         let config_p = self.path.borrow().new_path_with("/config");
-
         let del_p = self.path.borrow().new_path_with("/del");
 
-        info_router(&scan_p);
-        info_router(&list_p);
-        info_router(&config_p);
-        info_router_with_query(
-            &del_p,
-            DelReq {
-                id: String::from("111"),
-            },
-        );
-
         Router::new()
-            .route(
-                scan_p.curr_part().unwrap_or_default(),
-                get({
-                    let parent = self.path.borrow().parent().all_path();
-                    move |app: State<Arc<AppState>>| scan(app, parent)
-                }),
-            )
-            .route(list_p.curr_part().unwrap_or_default(), get(list))
-            .route(config_p.curr_part().unwrap_or_default(), get(config))
-            .route(del_p.curr_part().unwrap_or_default(), get(del))
+            .route(scan_p.router_str(), get(scan))
+            .route(list_p.router_str(), get(list))
+            .route(config_p.router_str(), get(config))
+            .route(del_p.router_str(), get(del))
     }
 }
 
@@ -71,17 +54,8 @@ async fn del(State(app): State<Arc<AppState>>, Query(id): Query<DelReq>) -> Resp
     app.pm().remove(&PluginId::new_by(id.id)).into()
 }
 
-async fn scan(State(app): State<Arc<AppState>>, parent: String) -> RespResult<usize> {
+async fn scan(State(app): State<Arc<AppState>>) -> RespResult<usize> {
     let plugins = app.pm().scan();
-
-    let parent = UrlPath::new(&parent);
-    let plugin = Plugin::new(&parent);
-
-    for ele in &plugins {
-        let plugin_id = plugin.path().new_path_with(ele.as_str());
-        info_router(&plugin_id);
-    }
-
     plugins.len().into()
 }
 
