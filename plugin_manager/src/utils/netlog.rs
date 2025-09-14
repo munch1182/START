@@ -5,7 +5,7 @@ use axum::{
     response::Response,
 };
 use futures::future::BoxFuture;
-use libcommon::{prelude::info, record};
+use libcommon::record;
 use std::{str::from_utf8, time::Instant};
 use tower::{Layer, Service};
 

@@ -1,23 +1,37 @@
+use libcommon::prelude::With;
 use std::sync::Arc;
-
 pub use tao::window::WindowBuilder;
 pub use wry::WebViewBuilder;
 
 pub type WindowBuilderFn = dyn Fn(WindowBuilder) -> WindowBuilder + Send + Sync;
 pub type WebViewBuilderFn = dyn Fn(WebViewBuilder) -> WebViewBuilder + Send + Sync;
 
-#[derive(Clone)]
+#[derive(Clone, With)]
 pub struct WindowConfig {
     pub label: String,
     pub url: Option<String>,  // url地址
     pub html: Option<String>, // 本地文件或者html字符串
     pub size: Option<(i32, i32)>,
     pub position: Option<(i32, i32)>,
+    #[with(skip)]
     pub with_window: Option<Arc<WindowBuilderFn>>,
+    #[with(skip)]
     pub with_webview: Option<Arc<WebViewBuilderFn>>,
 }
 
 impl WindowConfig {
+    pub fn new(label: impl ToString) -> Self {
+        Self {
+            label: label.to_string(),
+            url: None,
+            html: None,
+            size: None,
+            position: None,
+            with_window: None,
+            with_webview: None,
+        }
+    }
+
     pub(crate) fn build_window(&self, build: WindowBuilder) -> WindowBuilder {
         let mut build = build.with_title(&self.label);
         if let Some(s) = &self.size {
@@ -44,43 +58,6 @@ impl WindowConfig {
             build = f(build);
         }
         build
-    }
-
-    #[inline]
-    pub fn new(label: &str) -> Self {
-        Self {
-            label: label.to_string(),
-            url: None,
-            html: None,
-            size: None,
-            position: None,
-            with_window: None,
-            with_webview: None,
-        }
-    }
-
-    #[inline]
-    pub fn with_url(mut self, url: impl ToString) -> Self {
-        self.url = Some(url.to_string());
-        self
-    }
-
-    #[inline]
-    pub fn with_html(mut self, html: impl ToString) -> Self {
-        self.html = Some(html.to_string());
-        self
-    }
-
-    #[inline]
-    pub fn with_size(mut self, width: i32, height: i32) -> Self {
-        self.size = Some((width, height));
-        self
-    }
-
-    #[inline]
-    pub fn with_position(mut self, x: i32, y: i32) -> Self {
-        self.position = Some((x, y));
-        self
     }
 
     #[inline]

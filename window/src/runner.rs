@@ -2,7 +2,7 @@ use crate::{App, UserEvent, WindowConfig, WindowHandle};
 use libcommon::prelude::{Result, info};
 use std::{cell::RefCell, rc::Rc};
 use tao::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget},
 };
 use wry::WebViewBuilder;
@@ -32,7 +32,7 @@ impl WindowRunner {
         Ok(WindowHandle {
             id,
             label: wc.label.clone(),
-            _window: window,
+            window,
             _webview: webview,
         })
     }
@@ -52,28 +52,35 @@ impl WindowRunner {
             *control_flow = ControlFlow::Wait;
             match event {
                 Event::WindowEvent {
-                    window_id,
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    let wm = self.wm.borrow();
-                    let _ = wm.close_impl(window_id);
-                    info!("Event: CloseRequested: {window_id:?}");
-                    if wm.empty() {
-                        info!("Event: Exit");
-                        *control_flow = ControlFlow::Exit
+                    window_id, event, ..
+                } => match event {
+                    WindowEvent::CloseRequested => {
+                        let wm = self.wm.borrow();
+                        let _ = wm.close_impl(window_id);
+                        info!("Event: CloseRequested: {window_id:?}");
+                        if wm.empty() {
+                            info!("Event: Exit");
+                            *control_flow = ControlFlow::Exit
+                        }
                     }
-                }
-                Event::MainEventsCleared => {}
-                Event::RedrawRequested(_) => {}
+                    WindowEvent::MouseInput { state, button, .. } => {
+                        info!("Event: MouseInput: {button:?} {state:?}");
+                        if button == MouseButton::Left && state == ElementState::Pressed {
+                            info!("Event: MouseInput: Left Pressed");
+                            let _ = self.wm.borrow().start_drag_impl(window_id);
+                        }
+                    }
+                    _ => {}
+                },
                 Event::UserEvent(e) => {
                     info!("Event: {e}");
                     match e {
                         UserEvent::Create(wc) => {
                             if let Ok(wh) = Self::create_window_impl(target, &wc) {
-                                let _ = self.wm.borrow_mut().add_wh(wh);
+                                let _ = self.wm.borrow_mut().insert_wh(wh);
                             };
                         }
+                        UserEvent::Exit => *control_flow = ControlFlow::Exit,
                     }
                 }
                 _ => (),

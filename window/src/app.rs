@@ -25,6 +25,7 @@ pub trait WindowExecuteExt<'a, ID>: WindowCreateExt {
     fn run(&self) -> !;
     fn close(&self, id: ID) -> Result<()>;
     fn find(&'a self, id: ID) -> Option<Window<'a>>;
+    fn exit(&self);
 }
 
 /// 窗口管理器
@@ -44,7 +45,7 @@ unsafe impl Sync for App {}
 pub(crate) struct WindowHandle {
     pub(crate) id: WindowId,
     pub(crate) label: String,
-    pub(crate) _window: tao::window::Window,
+    pub(crate) window: tao::window::Window,
     pub(crate) _webview: wry::WebView,
 }
 
@@ -111,6 +112,11 @@ impl<'a> WindowExecuteExt<'a, &'a str> for App {
         }
         None
     }
+
+    fn exit(&self) {
+        self.pending.borrow_mut().clear();
+        let _ = self.send(UserEvent::Exit);
+    }
 }
 
 impl App {
@@ -122,20 +128,31 @@ impl App {
     }
 
     pub(crate) fn close_impl(&self, id: WindowId) -> Result<()> {
-        let w = self.wm.write().map_err_ext()?.remove(&id);
+        let w = self.wm.write().newerr()?.remove(&id);
         if let Some(w) = w {
-            self.id.write().map_err_ext()?.remove(&w.label);
+            self.id.write().newerr()?.remove(&w.label);
         }
         Ok(())
     }
 
-    pub(crate) fn add_wh(&self, wh: WindowHandle) -> Result<()> {
+    pub(crate) fn start_drag_impl(&self, id: WindowId) -> Result<()> {
+        if let Some(w) = self.wm.read().newerr()?.get(&id) {
+            w.window.drag_window()?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn insert_wh(&self, wh: WindowHandle) -> Result<()> {
         info!("Add window({}({:?}))", wh.label, wh.id);
-        self.id
-            .write()
-            .map_err_ext()?
-            .insert(wh.label.clone(), wh.id);
-        self.wm.write().map_err_ext()?.insert(wh.id, wh);
+        self.id.write().newerr()?.insert(wh.label.clone(), wh.id);
+        self.wm.write().newerr()?.insert(wh.id, wh);
+        Ok(())
+    }
+
+    pub(crate) fn send(&self, event: UserEvent) -> Result<()> {
+        if let Some(proxy) = self.proxy.read().newerr()?.as_ref() {
+            proxy.send_event(event)?;
+        }
         Ok(())
     }
 
@@ -143,13 +160,14 @@ impl App {
     /// 如果代理未设置，则将窗口配置保存到pending中，等待代理设置后立即创建
     /// 如果代理已设置，则发送创建事件
     fn create_impl(&self, wc: WindowConfig) -> Result<()> {
-        if let Some(proxy) = self.proxy.read().map_err_ext()?.as_ref() {
+        if let Some(proxy) = self.proxy.read().newerr()?.as_ref() {
             proxy.send_event(UserEvent::Create(wc))?;
         } else {
             self.pending.borrow_mut().push(wc);
         }
         Ok(())
     }
+
     pub(crate) fn setup_proxy(&self, proxy: EventLoopProxy<UserEvent>) {
         if let Ok(mut p) = self.proxy.write() {
             *p = Some(proxy);
