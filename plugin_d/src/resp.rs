@@ -27,7 +27,7 @@ impl<T> From<Result<T>> for Resp<T> {
             Ok(data) => Self::sucess(data),
             Err(err) => Self {
                 code: 1,
-                msg: format!("{:?}", err),
+                msg: format!("{err:?}"),
                 data: None,
             },
         }

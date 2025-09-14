@@ -86,8 +86,8 @@ impl PluginInfo {
     }
 }
 
-impl ToString for &PluginInfo {
-    fn to_string(&self) -> String {
-        self.name.clone()
+impl std::fmt::Display for &PluginInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }

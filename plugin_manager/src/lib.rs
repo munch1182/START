@@ -15,7 +15,7 @@ use tokio::net::TcpListener;
 
 pub struct App {
     host: String,
-    _lis: TcpListener,
+    lis: TcpListener,
 }
 
 impl App {
@@ -33,12 +33,12 @@ impl App {
         let host = listener.local_addr()?;
         Ok(Self {
             host: format!("http://{host}"),
-            _lis: listener,
+            lis: listener,
         })
     }
 
-    pub fn host(&self) -> &str {
-        &self.host
+    pub fn host(&self) -> String {
+        self.host.to_string()
     }
 
     pub async fn run(self, config: AppConfig) -> Result<()> {
@@ -46,7 +46,7 @@ impl App {
         info!("Starting server at {server}");
         let app_router = AppRouter::new(&server);
         let router = app_router.router(config).layer(LogLayer::new());
-        axum::serve(self._lis, router).await?;
+        axum::serve(self.lis, router).await?;
         Ok(())
     }
 }

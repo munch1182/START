@@ -58,7 +58,10 @@ where
             let start = Instant::now();
             record!("--> {method} {uri} {version:?}");
             for (n, v) in headers.iter() {
-                record!("{n}: {v:?}");
+                // sec-开头的是浏览器自动添加的
+                if !n.to_string().starts_with("sec-") {
+                    record!("{n}: {v:?}");
+                }
             }
             // 克隆请求体以便读取
             let (parts, body) = req.into_parts();

@@ -55,6 +55,7 @@ impl PM {
     }
 
     pub fn scan(&self) -> Vec<PluginId> {
+        info!("scan plugin dir: {:?}", self.scan_dir);
         let plugins = scan_plugin(&self.scan_dir);
         if plugins.is_empty() {
             return vec![];
