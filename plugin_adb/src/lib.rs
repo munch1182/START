@@ -1,3 +1,6 @@
+mod scan;
+pub use scan::*;
+
 use axum::{body::Body, http::Request};
 use libcommon::prelude::Result;
 use serde_json::{Value, json};
