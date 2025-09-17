@@ -1,13 +1,16 @@
 use crate::{
     config::FS_DIR_ROUTER,
-    router::{APP_STATE, ApiImpl, AppState, admin::Admin, plugin::Plugin},
+    router::{
+        APP_STATE, ApiImpl, AppState,
+        v1::{admin::Admin, plugin::Plugin},
+    },
     urlpath::UrlPath,
 };
 use axum::Router;
 use std::{cell::RefCell, sync::Arc};
 use tower_http::services::ServeDir;
 
-pub(crate) struct ApiV1<'a> {
+pub struct ApiV1<'a> {
     prefix: &'a str,
     path: RefCell<UrlPath<'a>>,
 }

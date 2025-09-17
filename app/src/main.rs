@@ -8,12 +8,11 @@ static APP: LazyLock<AppWindow> = LazyLock::new(AppWindow::default);
 #[logsetup("test_log_dir")]
 #[tokio::main]
 async fn main() -> Result<()> {
-    let app_net = AppNet::new().await?;
+    let config = AppConfig::new(curr_dir!("test_scan_dir")?, curr_dir!("test_fs_dir")?);
+    let app_net = AppNet::new_with_scan(config).await?;
     let url = app_net.host();
-    let scan_dir = curr_dir!("test_scan_dir")?;
-    let fs_dir = curr_dir!("test_fs_dir")?;
     tokio::spawn(async {
-        if app_net.run(AppConfig::new(scan_dir, fs_dir)).await.is_err() {
+        if app_net.run().await.is_err() {
             APP.exit();
         }
     });

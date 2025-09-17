@@ -1,5 +1,5 @@
 use crate::{
-    config::{DIR_INDEX_NAME, NUM_CACHE, PLUGIN_HANDLE},
+    config::{DIR_INDEX_NAME, DIR_LINK_FILE_NAME, FS_DIR_ROUTER, NUM_CACHE, PLUGIN_HANDLE},
     pm::PluginId,
     router::APP_STATE,
     utils::file::scan_plugin,
@@ -9,7 +9,7 @@ use libcommon::{ext::FileDirCreateExt, newerr, prelude::*};
 use libloading::{Library, Symbol};
 use lru::LruCache;
 use plugin_d::PluginInfo;
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::{cell::RefCell, collections::HashMap, ffi::OsString, fs, num::NonZeroUsize, path::Path};
 
 type PluginHandleFn = fn(String, Request<Body>) -> Result<Value>;
@@ -77,17 +77,21 @@ impl PM {
         let dir = Path::new(APP_STATE.wait().fs_dir());
         let dir = dir.join(id.as_str()).create_dir()?;
         let index_in_fs = dir.join(DIR_INDEX_NAME);
+        let dll_in_fs = dir.join(DIR_LINK_FILE_NAME);
         let index_in_orgin = res.html_with_dir();
+        let dll_in_orgin = res.file_with_dir();
         // 创建软链接，使用静态文件服务访问软连接间距访问文件
         #[cfg(windows)]
         {
             use std::os::windows::fs::symlink_file;
             symlink_file(&index_in_orgin, &index_in_fs)?;
+            symlink_file(&dll_in_orgin, &dll_in_fs)?;
         }
         #[cfg(unix)]
         {
             use std::os::unix::fs::symlink;
             symlink_file(&index_in_orgin, &index_in_fs)?;
+            symlink_file(&dll_in_orgin, &dll_in_fs)?;
         }
         Ok(())
     }
@@ -126,8 +130,17 @@ impl PM {
         }
     }
 
-    pub fn get(&self, id: PluginId) -> Option<PluginInfo> {
-        self.plugins.borrow().get(&id).map(|p| p.info.clone())
+    pub fn get(&self, id: PluginId) -> Option<Value> {
+        self.plugins
+            .borrow()
+            .get(&id)
+            .map(|p| p.info.clone())
+            .map(|a| {
+                json!({
+                    "name": a.name,
+                    "index": format!("{}/{}/{}", FS_DIR_ROUTER, id, DIR_INDEX_NAME)
+                })
+            })
     }
 
     pub fn handle(&self, id: &PluginId, path: String, req: Request<Body>) -> Result<Value> {

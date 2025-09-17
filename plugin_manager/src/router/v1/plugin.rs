@@ -12,7 +12,6 @@ use axum::{
     routing::{any, get},
 };
 use libcommon::newerr;
-use plugin_d::PluginInfo;
 use serde_json::Value;
 use std::{cell::RefCell, sync::Arc};
 
@@ -44,7 +43,7 @@ impl<'a> ApiImpl<'a> for Plugin<'a> {
 async fn plugin_info(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-) -> RespResult<PluginInfo> {
+) -> RespResult<Value> {
     let plugin_id = PluginId::new_by(&id);
     state
         .pm()

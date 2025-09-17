@@ -1,14 +1,12 @@
-use crate::{router::apiv1::ApiV1, urlpath::UrlPath};
+use crate::{router::v1::ApiV1, urlpath::UrlPath};
 use axum::{Router, routing::get};
 use std::{
     cell::RefCell,
     sync::{Arc, OnceLock},
 };
 
-mod admin;
-mod apiv1;
 mod appstate;
-mod plugin;
+mod v1;
 pub use appstate::{AppConfig, AppState};
 
 pub(crate) trait ApiImpl<'a> {
@@ -31,9 +29,7 @@ impl<'a> AppRouter<'a> {
         }
     }
 
-    pub fn router(&self, config: AppConfig) -> Router {
-        let state = Arc::new(AppState::new(config));
-        let _ = APP_STATE.set(state);
+    pub fn router(&self) -> Router {
         let v1 = ApiV1::new(&self.path.borrow());
         Router::new()
             .route("/", get(no_router))

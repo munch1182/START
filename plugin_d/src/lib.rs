@@ -13,6 +13,9 @@ pub struct PluginInfo {
     pub name: String,
     /// 插件版本
     pub version: String,
+    /// 插件第二个关键字
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keyword: Option<String>,
     /// 插件资源
     pub res: Res,
 }
@@ -49,40 +52,14 @@ impl Res {
     /// dll文件使用默认名：plugin_{plugin_name}.dll
     /// html文件使用默认名：index.html
     pub fn new_in_dir(plugin_name: &str) -> Self {
-        let file = format!("plugin_{plugin_name}.dll");
+        let file = if plugin_name.starts_with("plugin_") {
+            format!("{plugin_name}.dll")
+        } else {
+            format!("plugin_{plugin_name}.dll")
+        };
         let html = String::from("index.html");
         let dir = String::default();
         Self { dir, file, html }
-    }
-}
-
-impl PluginInfo {
-    #[inline]
-    pub fn new(name: impl ToString, version: impl ToString, res: Res) -> Self {
-        Self {
-            name: name.to_string(),
-            version: version.to_string(),
-            res,
-        }
-    }
-
-    #[inline]
-    pub fn new_in_dir_default(name: impl ToString, version: impl ToString) -> Self {
-        let name = name.to_string();
-        Self {
-            name: name.clone(),
-            version: version.to_string(),
-            res: Res::new_in_dir(&name),
-        }
-    }
-
-    #[inline]
-    pub fn new_in_dir(name: impl ToString, version: impl ToString, dir: impl ToString) -> Self {
-        Self {
-            name: name.to_string(),
-            version: version.to_string(),
-            res: Res::new_in_dir(&dir.to_string()),
-        }
     }
 }
 

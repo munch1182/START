@@ -6,11 +6,15 @@ pub mod urlpath;
 mod utils;
 
 use crate::{
-    router::{AppConfig, AppRouter},
+    router::{APP_STATE, AppConfig, AppRouter, AppState},
     utils::netlog::LogLayer,
 };
-use libcommon::prelude::{Result, info};
+use libcommon::{
+    newerr,
+    prelude::{Result, info},
+};
 use serde::Serializer;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 
 pub struct App {
@@ -19,7 +23,7 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new() -> Result<Self> {
+    pub async fn new(config: AppConfig) -> Result<Self> {
         let listener = {
             #[cfg(debug_assertions)]
             {
@@ -30,6 +34,9 @@ impl App {
                 TcpListener::bind("127.0.0.1:0").await?
             }
         };
+        APP_STATE
+            .set(Arc::new(AppState::new(config)))
+            .map_err(|_| newerr!("app state already set"))?;
         let host = listener.local_addr()?;
         Ok(Self {
             host: format!("http://{host}"),
@@ -37,15 +44,27 @@ impl App {
         })
     }
 
+    pub async fn new_with_scan(config: AppConfig) -> Result<Self> {
+        let app = Self::new(config).await?;
+        app.scan();
+        Ok(app)
+    }
+
     pub fn host(&self) -> String {
         self.host.to_string()
     }
 
-    pub async fn run(self, config: AppConfig) -> Result<()> {
+    pub fn scan(&self) {
+        if let Some(app) = APP_STATE.get() {
+            let _ = app.pm().scan();
+        }
+    }
+
+    pub async fn run(self) -> Result<()> {
         let server = self.host;
         info!("Starting server at {server}");
         let app_router = AppRouter::new(&server);
-        let router = app_router.router(config).layer(LogLayer::new());
+        let router = app_router.router().layer(LogLayer::new());
         axum::serve(self.lis, router).await?;
         Ok(())
     }
@@ -68,24 +87,5 @@ impl std::fmt::Debug for App {
         } else {
             write!(f, "App({})", self.host)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use libcommon::{
-        log::log_setup,
-        prelude::{info, timer},
-    };
-
-    use super::*;
-
-    #[timer]
-    #[tokio::test]
-    async fn test_port() {
-        log_setup();
-        let a = App::new().await.unwrap();
-        info!("{a}");
-        assert!(!a.host.split(':').last().unwrap().is_empty());
     }
 }

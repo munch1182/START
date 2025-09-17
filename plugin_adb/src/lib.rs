@@ -1,6 +1,7 @@
 mod scan;
 use axum::{body::Body, extract::Query, http::Request};
 use libcommon::{newerr, prelude::Result};
+use plugin_d::{PluginInfo, Res};
 use scan::*;
 use serde::Deserialize;
 use serde_json::Value;
@@ -9,44 +10,57 @@ use std::sync::Mutex;
 static ADB_CACHE: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 #[unsafe(no_mangle)]
-fn plugin_handle(path: String, req: Request<Body>) -> Result<Value> {
-    match F::from_str(path.as_str())? {
-        F::Connect => {
-            let i: Query<Connect> = Query::try_from_uri(req.uri()).unwrap_or_default();
-            let adb = {
-                let cache = ADB_CACHE.lock().unwrap();
-                let cache = cache.get(i.i as usize);
-                cache.cloned()
-            };
-            if let Some(adb) = adb {
-                let res = connect_adb(&adb);
-                return Resp::from("connect", res).to();
-            }
-            Resp::from("connect", Err(newerr!("no adb device"))).to()
-        }
-        F::Disconnect => {
-            let res = disconnect_adb();
-            {
-                ADB_CACHE.lock().unwrap().clear();
-            }
-            Resp::from("connect", res).to()
-        }
-        F::Scan => {
-            let adb = scan_adb()?;
-            {
-                let mut cache = ADB_CACHE.lock().unwrap();
-                cache.clear();
-                cache.extend(adb.iter().cloned());
-            }
-            Resp::from_vec("connect", adb).to()
-        }
+fn plugin_info(res: Res) -> PluginInfo {
+    PluginInfo {
+        name: "adb".to_string(),
+        version: "0.0.1".to_string(),
+        keyword: None,
+        res,
     }
 }
 
-#[derive(Default, Deserialize)]
-struct Connect {
-    pub i: u8,
+#[unsafe(no_mangle)]
+fn plugin_handle(path: String, req: Request<Body>) -> Result<Value> {
+    match F::from_str(path.as_str())? {
+        F::Connect => connect(Query::try_from_uri(req.uri()).unwrap_or_default())?.to(),
+        F::Disconnect => disconnect().to(),
+        F::Scan => scan()?.to(),
+    }
 }
+
+fn scan() -> Result<Resp<Vec<String>>> {
+    let adb = scan_adb()?;
+    {
+        let mut cache = ADB_CACHE.lock().unwrap();
+        cache.clear();
+        cache.extend(adb.iter().cloned());
+    }
+    Ok(Resp::from_vec("scan", adb))
+}
+
+fn disconnect() -> Resp<String> {
+    let res = disconnect_adb();
+    {
+        ADB_CACHE.lock().unwrap().clear();
+    }
+    Resp::from("disconnect", res)
+}
+
+fn connect(Query(Connect(i)): Query<Connect>) -> Result<Resp<String>> {
+    let adb = {
+        let cache = ADB_CACHE.lock().unwrap();
+        let cache = cache.get(i as usize);
+        cache.cloned()
+    };
+    if let Some(adb) = adb {
+        let res = connect_adb(&adb);
+        return Ok(Resp::from("connect", res));
+    }
+    Ok(Resp::from("connect", Err(newerr!("no adb device"))))
+}
+
+#[derive(Default, Deserialize)]
+struct Connect(pub u8);
 
 #[derive(serde::Serialize)]
 struct Resp<T> {

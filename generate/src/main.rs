@@ -4,6 +4,8 @@ use libcommon::{
     newerr,
     prelude::*,
 };
+use libloading::{Library, Symbol};
+use plugin_d::{PluginInfo, Res};
 use std::{
     env::current_dir,
     fs,
@@ -34,9 +36,11 @@ fn run() -> Result<()> {
 
     println!("{}", format!("Generating {}...", name).green());
 
-    if generate_plugin(&dir)? {
+    if generate_plugin(dir)? {
         println!("{}", "Copy plugin to target...".green());
-        copy_plugin_to_target(&current_dir, name)?;
+        let target = copy_plugin_to_target(&current_dir, name)?;
+        println!("{}", "Write plugin info...".green());
+        write_info(name, target)?;
         println!("{}", "success".green());
     } else {
         println!("{}", "error".red());
@@ -45,7 +49,20 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn copy_plugin_to_target(current_dir: &Path, plugin_name: &str) -> Result<()> {
+fn write_info(name: &str, target: PathBuf) -> Result<()> {
+    let parent = &target.parent().ok_or(newerr!(""))?;
+
+    let lib = unsafe { Library::new(&target) }?;
+    let get_info: Symbol<'_, fn(Res) -> PluginInfo> = unsafe { lib.get(b"plugin_info") }?;
+
+    let info = get_info(Res::new_in_dir(name));
+
+    let info_path = parent.join("plugin_info.json");
+    serde_json::to_writer(fs::File::create(info_path)?, &info)?;
+    Ok(())
+}
+
+fn copy_plugin_to_target(current_dir: &Path, plugin_name: &str) -> Result<PathBuf> {
     let dll_name = format!("{}.dll", plugin_name);
     let source_path = current_dir.join_all(&["target", "release", &dll_name]);
 
@@ -57,9 +74,9 @@ fn copy_plugin_to_target(current_dir: &Path, plugin_name: &str) -> Result<()> {
         .join_all(&["test_scan_dir", plugin_name, &dll_name])
         .create_parent()?;
 
-    fs::copy(source_path, target_path)?;
+    fs::copy(source_path, &target_path)?;
 
-    Ok(())
+    Ok(target_path)
 }
 
 fn generate_plugin(plugin_dir: &Path) -> Result<bool> {
@@ -81,10 +98,10 @@ fn read_plugin_index(max_index: usize) -> Result<usize> {
 
         let trimmed = input.trim();
 
-        if let Ok(index) = trimmed.parse::<usize>() {
-            if index < max_index {
-                return Ok(index);
-            }
+        if let Ok(index) = trimmed.parse::<usize>()
+            && index < max_index
+        {
+            return Ok(index);
         }
 
         println!("{}", "Invalid index, please try again".red());
