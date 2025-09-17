@@ -517,16 +517,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dns-parser-revived"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1720ac026b15e428a9b332077a00563eb4f300376580b30038165077b48d068a"
-dependencies = [
- "byteorder",
- "quick-error",
-]
-
-[[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1525,14 +1515,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
-name = "mdns_helper"
-version = "0.1.0"
-dependencies = [
- "dns-parser-revived",
- "thiserror 2.0.16",
-]
-
-[[package]]
 name = "memchr"
 version = "2.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1966,8 +1948,8 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "libcommon",
- "mdns_helper",
  "plugin_d",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -2088,12 +2070,6 @@ checksum = "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de"
 dependencies = [
  "unicode-ident",
 ]
-
-[[package]]
-name = "quick-error"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quote"

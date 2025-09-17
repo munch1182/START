@@ -13,7 +13,7 @@ async fn main() -> Result<()> {
     let scan_dir = curr_dir!("test_scan_dir")?;
     let fs_dir = curr_dir!("test_fs_dir")?;
     tokio::spawn(async {
-        if let Err(_) = app_net.run(AppConfig::new(scan_dir, fs_dir)).await {
+        if app_net.run(AppConfig::new(scan_dir, fs_dir)).await.is_err() {
             APP.exit();
         }
     });
