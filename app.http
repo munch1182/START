@@ -1,0 +1,31 @@
+POST http://127.0.0.1:12345/api/v1/plugin/scan
+Content-Type: application/json
+
+{
+    "path":"C:\\Users\\MING\\ws\\START\\test_dir_scan"
+}
+    
+###
+
+http://127.0.0.1:12345/api/v1/plugin/list
+
+###
+
+http://127.0.0.1:12345/api/v1/plugin/15a16988a79de7ed
+
+###
+
+http://127.0.0.1:12345/api/v1/plugin/15a16988a79de7ed/scan
+
+###
+
+http://127.0.0.1:12345/api/v1/plugin/15a16988a79de7ed/connect
+Content-Type: application/json
+
+{
+    "i": 0
+}
+###
+
+
+http://127.0.0.1:12345/api/v1/plugin/15a16988a79de7ed/disconnect
