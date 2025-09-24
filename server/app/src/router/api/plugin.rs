@@ -1,4 +1,4 @@
-use crate::{CONFIG, config::DIR_DEFAULT_SCAN, pm::PluginManager};
+use crate::{CONFIG, config::DIR_DEFAULT_SCAN, pm::PluginManager, utils::opt_json::OptJson};
 use axum::{
     Json, Router,
     body::Body,
@@ -29,12 +29,12 @@ async fn plugin<PM: PluginManagerState>(
 
 async fn scan<PM: PluginManagerState>(
     State(app): State<PM>,
-    q: Option<Json<ScanQ>>,
+    OptJson(q): OptJson<ScanQ>,
 ) -> Resp<Vec<String>> {
     let query = q.map(|q| q.path.clone()).unwrap_or_else(|| {
         CONFIG
             .read()
-            .map(|c| c.dir_fs.to_string())
+            .map(|c| c.dir_scan.to_string())
             .unwrap_or(DIR_DEFAULT_SCAN.to_string())
     });
     get_pm(app).scan(query).into()
@@ -45,6 +45,7 @@ async fn list<PM: PluginManagerState>(State(app): State<PM>) -> Resp<Vec<ListR>>
         .get(|i| ListR {
             id: i.id.clone(),
             name: i.info.name.clone(),
+            keyword: i.info.keyword.clone(),
             version: i.info.version.clone(),
         })
         .into()
@@ -78,5 +79,7 @@ struct DelQ {
 struct ListR {
     id: String,
     name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keyword: Option<String>,
     version: String,
 }

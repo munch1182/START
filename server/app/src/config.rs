@@ -16,15 +16,21 @@ pub static CONFIG: LazyLock<Arc<RwLock<Config>>> = LazyLock::new(Default::defaul
 #[derive(Debug)]
 pub struct Config {
     /// 默认扫描文件夹
+    ///
+    /// 运行后会替换成真实地址
     pub dir_scan: String,
     /// 创建link的文件夹地址
+    ///
+    /// 运行后会替换成真实地址
     pub dir_fs: String,
     /// 缓存数量
     pub num_cache: usize,
-    /// link文件名
+    /// link固定文件名
     pub name_file_link: String,
-    /// 网络文件地址名
+    /// 网络文件固定地址名
     pub name_file_net: String,
+    /// 运行后的服务器完整地址
+    pub host: Option<String>,
 }
 
 impl Config {
@@ -55,6 +61,7 @@ impl Default for Config {
             num_cache: NUM_COUNT_CACHE,
             name_file_link: NAME_FILE_LINK.to_string(),
             name_file_net: NAME_FILE_NET.to_string(),
+            host: None,
         }
     }
 }
