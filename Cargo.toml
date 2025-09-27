@@ -1,9 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["generate",
+members = [
+    "generate",
     "plugins/plugin_adb",
     "plugins/plugin_desktop",
-    "server/app",
+    "app",
+    "server/plugin_manager",
     "server/plugin_d",
     "server/window",
 ]

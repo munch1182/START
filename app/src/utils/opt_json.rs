@@ -39,17 +39,6 @@ where
     type Rejection = Response;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        // 检查 Content-Type 是否为 application/json
-        let content_type = req.headers().get("content-type");
-        let is_json = content_type
-            .and_then(|ct| ct.to_str().ok())
-            .map(|ct| ct.starts_with("application/json"))
-            .unwrap_or(false);
-
-        if !is_json {
-            return Ok(OptJson(None));
-        }
-
         // 尝试解析 JSON
         match Json::<T>::from_request(req, state).await {
             Ok(Json(value)) => Ok(OptJson(Some(value))),

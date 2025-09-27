@@ -9,9 +9,10 @@ use tao::{
 use wry::WebViewBuilder;
 
 /// 窗口执行
-pub(crate) struct WindowRunner {
+pub struct WindowRunner {
     el: EventLoop<UserEvent>,
     wm: Rc<RefCell<WindowManager>>,
+    on_close: Option<Box<dyn FnOnce() + Send>>,
 }
 
 impl WindowRunner {
@@ -19,6 +20,18 @@ impl WindowRunner {
         Self {
             el: EventLoopBuilder::with_user_event().build(),
             wm: Rc::new(RefCell::new(wm)),
+            on_close: None,
+        }
+    }
+
+    pub(crate) fn new_with_on_close<F>(wm: WindowManager, on_close: F) -> Self
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        Self {
+            el: EventLoopBuilder::with_user_event().build(),
+            wm: Rc::new(RefCell::new(wm)),
+            on_close: Some(Box::new(on_close)),
         }
     }
 
@@ -39,7 +52,8 @@ impl WindowRunner {
         Ok(w_ref)
     }
 
-    pub(crate) fn run(self) -> ! {
+    /// 运行窗口系统
+    pub fn run(mut self) -> ! {
         {
             let wm = self.wm.borrow();
             let proxy = self.el.create_proxy();
@@ -64,6 +78,10 @@ impl WindowRunner {
                             wm.is_empty()
                         };
                         if is_empty {
+                            if let Some(on_close) = self.on_close.take() {
+                                info!("Call on_close()");
+                                on_close();
+                            }
                             info!("EXIT");
                             *control_flow = ControlFlow::Exit;
                         }
@@ -81,7 +99,7 @@ impl WindowRunner {
                     match event {
                         UserEvent::Create(wc) => {
                             if let Ok(w_ref) = Self::create_window_impl(target, &wc) {
-                                let _ = self.wm.borrow_mut().insert(w_ref);
+                                let _ = self.wm.borrow_mut().insert_created_window(w_ref);
                             }
                         }
                         UserEvent::Exit => {

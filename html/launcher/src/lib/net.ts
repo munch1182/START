@@ -1,5 +1,3 @@
-const BASE_URL = "http://127.0.0.1:12345/api";
-
 export async function get<T>(url: string): Promise<T | null> {
     return call<T>(url, { method: "GET" });
 }
@@ -13,7 +11,8 @@ export async function post<R, T>(url: string, body: R | undefined = undefined): 
 }
 
 async function call<T>(url: string, opt: RequestInit): Promise<T | null> {
-    const res = await fetch(`${BASE_URL}/v1${url}`, opt);
+    let host = window.SERVER_URL;
+    const res = await fetch(`${host}/api/v1${url}`, opt);
     if (!res.ok) {
         return null;
     }

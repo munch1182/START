@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button'
-import { Table, TableBody, TableHeader, TableRow, TableCell, TableHead } from '@/components/ui/table'
-import { get, post } from '@/net';
+import { get, post } from '@/lib/net';
 import { onMounted, ref, type Component } from 'vue';
 import {
     Breadcrumb,
@@ -12,6 +11,7 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import DebugAdb from './DebugAdb.vue';
+import TableView from '@/components/TableView.vue';
 
 const components: { [key: string]: Component } = {
     DebugAdb
@@ -24,7 +24,7 @@ type Plugin = {
     version: string
 }
 
-const plugins = ref<Array<Plugin> | null>();
+const plugins = ref<Array<Plugin> | null | undefined>();
 const item = ref<string | null>(null);
 const component = ref<Component | null | undefined>(null);
 const id = ref<string | null>(null);
@@ -75,39 +75,15 @@ function showItem(plugin: Plugin) {
             </BreadcrumbItem>
         </BreadcrumbList>
     </Breadcrumb>
-    <div class="flex justify-center pl-16 pr-16">
+    <div class="flex flex-1 pl-16 pr-16">
         <component :is="component" v-if="item" :id="id" />
-        <Table class="border border-gray-300" v-if="!item">
-            <TableHeader>
-                <TableRow class="flex flex-1 pl-2 pr-2">
-                    <TableHead class="item">ID</TableHead>
-                    <TableHead class="item">Name</TableHead>
-                    <TableHead class="item">Version</TableHead>
-                    <TableHead class="item">Keyword</TableHead>
-                    <TableHead class="item">Op</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                <TableRow v-if="!plugins || !plugins.length" class="flex flex-1">
-                    <span class="item p-15">empty</span>
-                </TableRow>
-                <TableRow v-for="plugin in plugins" :key="plugin.name" class="flex flex-1 pl-2 pr-2"
-                    @click="showItem(plugin)">
-                    <TableCell class="item">{{ plugin.id }}</TableCell>
-                    <TableCell class="item">{{ plugin.name }}</TableCell>
-                    <TableCell class="item">{{ plugin.version }}</TableCell>
-                    <TableCell class="item">{{ plugin.keyword }}</TableCell>
-                    <TableCell class="item">
-                        <Button variant="secondary" @click="del(plugin.id)">Del</Button>
-                    </TableCell>
-                </TableRow>
-            </TableBody>
-        </Table>
+        <TableView :value="plugins" :titles="['id', 'name', 'version', 'keyword',]" @itemClick="showItem" v-if="!item"
+            :show-action-column="true" :clickableRows=true>
+            <template #actionCell="{ item }">
+                <Button variant="secondary" @click="del(item.id)">Del</Button>
+            </template>
+        </TableView>
     </div>
 </template>
 
-<style scoped>
-.item {
-    @apply flex flex-1 text-center justify-center items-center text-ellipsis overflow-hidden;
-}
-</style>
+<style scoped></style>

@@ -88,6 +88,14 @@ impl WindowManager {
         WindowRunner::new(self.clone()).run()
     }
 
+    /// 窗口运行后的关闭回调
+    pub fn on_close<F>(&self, on_close: F) -> WindowRunner
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        WindowRunner::new_with_on_close(self.clone(), on_close)
+    }
+
     /// 窗口运行后，设置事件代理
     pub(crate) fn setup_proxy(&self, proxy: EventLoopProxy<UserEvent>) {
         if let Ok(mut p) = self.proxy.write() {
@@ -96,7 +104,7 @@ impl WindowManager {
     }
 
     /// 窗口添加成功，添加到管理器中
-    pub(crate) fn insert(&self, w_ref: WindowRef) -> Result<()> {
+    pub(crate) fn insert_created_window(&self, w_ref: WindowRef) -> Result<()> {
         let id = w_ref.id;
         let label = w_ref.label.clone();
         {
