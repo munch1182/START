@@ -266,9 +266,12 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
     fn create_or_replace_symlink(&self, target: &Path, link_path: &Path) -> Result<()> {
         debug!("Creating or replacing symlink: {target:?} -> {link_path:?}");
         // 清理已存在的链接
-        if link_path.exists() {
-            fs::remove_file(link_path)
+        if let Some(dir) = link_path.parent() {
+            // 不能判断link是否存在
+            fs::remove_dir_all(dir)
                 .map_err(|e| newerr!("Failed to remove existing symlink: {e}"))?;
+            fs::create_dir_all(dir)
+                .map_err(|e| newerr!("Failed to create symlink directory: {e}"))?;
         }
 
         // 平台特定的软链接创建

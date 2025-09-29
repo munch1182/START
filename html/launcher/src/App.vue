@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import DebugOp from './components/debug/DebugOp.vue';
+import { Toaster } from 'vue-sonner'
+import 'vue-sonner/style.css'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-    <div>
-        <DebugOp></DebugOp>
-    </div>
+    <main>
+        <Toaster />
+        <RouterView />
+    </main>
 </template>
 
 <style scoped></style>

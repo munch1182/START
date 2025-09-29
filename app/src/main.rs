@@ -35,19 +35,16 @@ async fn main() -> Result<()> {
     let server = TcpListener::bind(("0.0.0.0", port())).await?;
     let url = format!("http://{}", server.local_addr()?).replace("0.0.0.0", "127.0.0.1");
 
-    let (server_dir, serve_dir_name) = {
+    let (net_base_dir, net_path_name) = {
         config.setup_dir(current_dir()?, &url);
-        (
-            config.symlink_base_dir.clone(),
-            config.path_name_file_net.clone(),
-        )
+        (config.net_base_dir.clone(), config.net_path_name.clone())
     };
 
-    info!("listening on {url}, {url}/api, {url}/{serve_dir_name}");
+    info!("listening on {url}, {url}/api, {url}/{net_path_name}");
 
     let app = Router::new()
         .nest("/api", router::api::routes())
-        .nest_service(&format!("/{serve_dir_name}"), ServeDir::new(&server_dir))
+        .nest_service(&format!("/{net_path_name}"), ServeDir::new(&net_base_dir))
         .layer(CorsLayer::permissive())
         .with_state(AppState::new(PluginManager::new(Arc::new(config))));
 
@@ -70,7 +67,7 @@ async fn main() -> Result<()> {
         #[cfg(debug_assertions)]
         {
             let debug_server = "http://127.0.0.1:5173/";
-            info!("server dir: {server_dir:?}; {debug_server}");
+            info!("server dir: {net_base_dir:?}; {debug_server}");
             WM.create_with_url("main", debug_server)?
         }
         #[cfg(not(debug_assertions))]

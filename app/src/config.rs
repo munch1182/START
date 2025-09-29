@@ -18,20 +18,20 @@ pub struct Config {
     /// 创建link的文件夹地址
     ///
     /// 运行后会替换成真实地址
-    pub symlink_base_dir: String,
+    pub net_base_dir: String,
     /// 缓存数量
     pub num_cache: usize,
     /// link固定文件名
     pub web_file_name: String,
     /// 网络文件固定地址名
-    pub path_name_file_net: String,
+    pub net_path_name: String,
     /// 运行后的服务器完整地址
     pub host: Option<String>,
 }
 
 impl PluginManagerConfig for Config {
     fn symlink_base_dir(&self) -> PathBuf {
-        PathBuf::from(&self.symlink_base_dir)
+        PathBuf::from(&self.net_base_dir)
     }
 
     fn web_file_name(&self) -> String {
@@ -47,11 +47,11 @@ impl Config {
     pub fn setup_dir(&mut self, dir: impl AsRef<Path>, host: &str) {
         let dir = dir.as_ref();
         self.scan_base_dir = dir.join(BASE_DIR_SCAN).to_string_lossy().to_string();
-        self.symlink_base_dir = dir.join(BASE_DIR_SYSLINK).to_string_lossy().to_string();
+        self.net_base_dir = dir.join(BASE_DIR_SYSLINK).to_string_lossy().to_string();
         self.host = Some(host.to_string());
         info!(
             "setup dir_scan: {:?}, dir_fs: {:?}",
-            self.scan_base_dir, self.symlink_base_dir
+            self.scan_base_dir, self.net_base_dir
         );
     }
 }
@@ -60,10 +60,10 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             scan_base_dir: BASE_DIR_SCAN.to_string(),
-            symlink_base_dir: BASE_DIR_SYSLINK.to_string(),
+            net_base_dir: BASE_DIR_SYSLINK.to_string(),
             num_cache: NUM_COUNT_CACHE,
             web_file_name: NAME_WEB_FILE.to_string(),
-            path_name_file_net: NAME_FILE_NET_PATH.to_string(),
+            net_path_name: NAME_FILE_NET_PATH.to_string(),
             host: None,
         }
     }
