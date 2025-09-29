@@ -6,7 +6,7 @@ export async function post<R, T>(url: string, body: R | undefined = undefined): 
     return call<T>(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: body ? JSON.stringify(body) : undefined
+        body: body ? JSON.stringify(body) : undefined,
     });
 }
 

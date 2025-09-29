@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { Toaster } from 'vue-sonner'
-import 'vue-sonner/style.css'
-import { RouterView } from 'vue-router'
+import { RouterView } from "vue-router";
 </script>
 
 <template>
-    <main>
-        <Toaster />
-        <RouterView />
+    <main class="flex flex-col items-center min-h-screen">
+        <RouterView name="Search" />
+        <RouterView name="Content" />
     </main>
 </template>
 

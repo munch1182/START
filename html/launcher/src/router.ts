@@ -1,17 +1,18 @@
 import { createWebHistory, createRouter } from "vue-router";
 import Search from "@/components/Search.vue";
+import Content from "@/components/Content.vue";
 
 export default createRouter({
     history: createWebHistory(),
     routes: [
         {
             path: "/",
-            redirect: "/debug"
+            components: {
+                Search,
+                Content,
+            },
         },
-        {
-            path: "/home",
-            component: Search,
-        },
+
         // {
         //     path: "/debug",
         //     component: () => import("@/components/debug/DebugOp.vue"),
@@ -22,5 +23,5 @@ export default createRouter({
         //         }
         //     ]
         // }
-    ]
+    ],
 });
