@@ -23,6 +23,7 @@ use std::{
 
 pub type PluginHandleFn = fn(String, Request<Body>) -> PluginResult;
 type PluginId = String;
+type OnUpdate<CONFIG> = Box<dyn Fn(&PluginManager<CONFIG>)>;
 
 /// 插件路径相关配置
 pub trait PluginManagerConfig {
@@ -43,6 +44,23 @@ pub struct PluginManager<CONFIG: PluginManagerConfig> {
     pub(crate) plugins: Arc<RwLock<HashMap<PluginId, PluginHandle>>>,
     pub(crate) fn_caches: Arc<Mutex<LruCache<PluginId, PluginHandleFn>>>,
     pub config: Arc<CONFIG>,
+    pub(crate) on_update: Arc<RwLock<Option<OnUpdate<CONFIG>>>>,
+}
+
+impl<CONFIG: PluginManagerConfig> IntoIterator for &PluginManager<CONFIG> {
+    type Item = PluginInfoWrapper;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        if let Ok(plugins) = self.plugins.read() {
+            return plugins
+                .values()
+                .map(|p| p.info.clone())
+                .collect::<Vec<_>>()
+                .into_iter();
+        }
+        vec![].into_iter()
+    }
 }
 
 unsafe impl<CONFIG: PluginManagerConfig> Send for PluginManager<CONFIG> {}
@@ -56,6 +74,7 @@ impl<CONFIG: PluginManagerConfig + Default> Default for PluginManager<CONFIG> {
             plugins: Default::default(),
             fn_caches: Arc::new(Mutex::new(LruCache::new(NonZero::new(num_cache).unwrap()))),
             config: Arc::new(config),
+            on_update: Default::default(),
         }
     }
 }
@@ -88,6 +107,7 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
                 NonZero::new(config.num_cache()).unwrap(),
             ))),
             config,
+            on_update: Default::default(),
         }
     }
 
@@ -109,20 +129,23 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
                 Err(e) => warn!("Plugin {dir:?} load failed: {e}"),
             }
         }
+        self.call_update();
         Ok(res)
     }
 
-    /// 获取插件列表并返回转换后的信息
-    ///
-    /// `MAP`: 插件信息转换函数; PluginInfoWrapper是无法直接返回的，需要转换成能返回的信息
-    pub fn get<MAP, R>(&self, map: MAP) -> Vec<R>
-    where
-        MAP: Fn(&PluginInfoWrapper) -> R,
-    {
-        if let Ok(plugins) = self.plugins.read() {
-            return plugins.values().map(|i| map(&i.info)).collect::<Vec<_>>();
+    pub fn set_on_update(self, f: impl Fn(&Self) + 'static) -> Self {
+        if let Ok(mut on_update) = self.on_update.write() {
+            *on_update = Some(Box::new(f));
         }
-        vec![]
+        self
+    }
+
+    fn call_update(&self) {
+        if let Ok(on_update) = self.on_update.write()
+            && let Some(f) = on_update.as_ref()
+        {
+            f(self);
+        }
     }
 
     /// 查找插件并返回转换后的信息
@@ -140,6 +163,7 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
             info!("Plugin {id} removed");
             let name = plugin.info.info.name.clone();
             drop(plugin);
+            self.call_update();
             return Some(name);
         }
         None

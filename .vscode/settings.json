@@ -1,5 +1,7 @@
 {
     "vscode-runner.projectRunner": {
         "curr": "pnpm run -F launcher dev"
-    }
+    },
+    // 禁用css的未知规则提示
+    "css.lint.unknownAtRules": "ignore"
 }

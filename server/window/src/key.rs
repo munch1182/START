@@ -1,4 +1,4 @@
-use libcommon::prelude::Result;
+use libcommon::prelude::{Result, info};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -23,7 +23,7 @@ struct KeyEvent {
     time: Instant,
 }
 
-pub struct KeyComboDetector {
+struct KeyComboDetector {
     pressed_keys: HashMap<String, Instant>,
     event_history: Vec<KeyEvent>,
     double_click_keys: Vec<KeyCode>,
@@ -78,6 +78,7 @@ impl KeyHelper {
         }
         {
             if let Some(combo) = self.combo_detector.borrow_mut().on_key(key, state) {
+                info!("key combo detected: {combo}");
                 for ele in self.combo_handle.borrow().values() {
                     ele(&combo);
                 }
@@ -103,16 +104,6 @@ impl KeyListenerExt for &KeyHelper {
 }
 
 impl KeyComboDetector {
-    pub fn new_with_double_click(keys: Vec<KeyCode>, timeout: Duration) -> Self {
-        Self {
-            pressed_keys: HashMap::new(),
-            event_history: Vec::new(),
-            double_click_keys: keys,
-            double_click_timeout: timeout,
-            double_click_key: (None, None),
-        }
-    }
-
     pub(crate) fn on_key(&mut self, key: KeyCode, state: ElementState) -> Option<String> {
         let time = Instant::now();
         let event = KeyEvent { key, state, time };

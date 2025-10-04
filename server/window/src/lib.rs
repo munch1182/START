@@ -11,11 +11,13 @@ use libcommon::prelude::*;
 use std::{
     cell::RefCell,
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 pub use tao::window::Window as TaoWindow;
+pub use tao::window::WindowBuilder as TaoWindowBuilder;
 use tao::{event_loop::EventLoopProxy, window::WindowId};
 pub use wry::WebView as WryWebView;
+pub use wry::WebViewBuilder as WryWebViewBuilder;
 
 #[derive(Clone, Default)]
 pub struct WindowManager {
@@ -29,6 +31,8 @@ pub struct WindowManager {
     pub(crate) pending: RefCell<Vec<WindowConfig>>,
     /// 按键管理: 当前问题：当按下tab切换窗口后，将无法获取到按键事件
     pub(crate) key: Arc<RwLock<KeyHelper>>,
+    /// 当前具有焦点的窗口
+    pub(crate) curr: Arc<Mutex<Option<WindowId>>>,
 }
 
 unsafe impl Send for WindowManager {}
@@ -45,15 +49,26 @@ impl WindowManager {
         self.ids.read().newerr().ok()?.get(label).cloned()
     }
 
-    pub fn find_window<'a>(&'a self, f: &'a str) -> Option<Window<'a>> {
-        self.find_id(f).map(|id| self.new_window(id, f))
+    pub fn find_window<'a>(&'a self, label: &'a str) -> Option<Window<'a>> {
+        self.find_id(label).map(|id| self.new_window(id, label))
+    }
+
+    pub fn curr<'a>(&'a self) -> Option<Window<'a>> {
+        let curr = { self.curr.lock().ok()?.as_ref().cloned() }?;
+        let label = { self.wms.read().ok()?.get(&curr)?.label.clone() };
+        let window = Window {
+            id: curr,
+            label,
+            wm: self,
+        };
+        Some(window)
     }
 
     #[inline]
-    pub(crate) fn new_window<'a>(&'a self, id: WindowId, label: &'a str) -> Window<'a> {
+    pub(crate) fn new_window<'a>(&'a self, id: WindowId, label: impl ToString) -> Window<'a> {
         Window {
             id,
-            label,
+            label: label.to_string(),
             wm: self,
         }
     }
@@ -115,6 +130,16 @@ impl WindowManager {
         }
         Ok(())
     }
+
+    pub(crate) fn set_curr_focused(&self, id: WindowId, focused: bool) {
+        if let Ok(mut curr) = self.curr.lock() {
+            if focused {
+                *curr = Some(id);
+            } else if *curr == Some(id) {
+                *curr = None;
+            }
+        }
+    }
 }
 
 impl WindowManager {
@@ -152,7 +177,7 @@ struct WindowRef {
 /// 对外暴露的窗口对象
 pub struct Window<'a> {
     id: WindowId,
-    pub label: &'a str,
+    pub label: String,
     wm: &'a WindowManager,
 }
 
@@ -160,6 +185,18 @@ impl<'a> Window<'a> {
     /// 关闭窗口
     pub fn close(&self) -> Option<()> {
         self.wm.close(self.id)
+    }
+
+    pub fn hide(&self) -> Option<()> {
+        self.wm.hide(self.id)
+    }
+
+    pub fn show(&self) -> Option<()> {
+        self.wm.show(self.id)
+    }
+
+    pub fn is_show(&self) -> Option<bool> {
+        self.wm.is_show(self.id)
     }
 }
 
@@ -169,6 +206,9 @@ pub trait WindowFindExt<ID, P, R> {
 
 pub trait WindowOpExt<ID> {
     fn close(self, id: ID) -> Option<()>;
+    fn hide(self, id: ID) -> Option<()>;
+    fn show(self, id: ID) -> Option<()>;
+    fn is_show(self, id: ID) -> Option<bool>;
 }
 
 impl<R> WindowFindExt<WindowId, WryWebView, R> for &WindowManager {
@@ -223,6 +263,18 @@ impl WindowOpExt<&str> for &WindowManager {
         }
         Some(())
     }
+
+    fn hide(self, id: &str) -> Option<()> {
+        self.hide(self.find_id(id)?)
+    }
+
+    fn show(self, id: &str) -> Option<()> {
+        self.show(self.find_id(id)?)
+    }
+
+    fn is_show(self, id: &str) -> Option<bool> {
+        self.is_show(self.find_id(id)?)
+    }
 }
 
 impl WindowOpExt<WindowId> for &WindowManager {
@@ -233,6 +285,18 @@ impl WindowOpExt<WindowId> for &WindowManager {
             }
         }
         Some(())
+    }
+
+    fn hide(self, id: WindowId) -> Option<()> {
+        self.find(id, |e: &TaoWindow| e.set_visible(false))
+    }
+
+    fn show(self, id: WindowId) -> Option<()> {
+        self.find(id, |e: &TaoWindow| e.set_visible(true))
+    }
+
+    fn is_show(self, id: WindowId) -> Option<bool> {
+        self.find(id, |e: &TaoWindow| e.is_visible())
     }
 }
 

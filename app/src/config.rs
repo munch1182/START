@@ -1,6 +1,12 @@
-use libcommon::prelude::info;
+use libcommon::{
+    Default_With, With, newerr,
+    prelude::{Err, info},
+};
 use plugin_manager::PluginManagerConfig;
 use std::path::{Path, PathBuf};
+use window::{TaoWindow, WindowFindExt, WryWebViewBuilder};
+
+use crate::WM;
 
 pub const BASE_DIR_SCAN: &str = "test_dir_scan";
 pub const BASE_DIR_SYSLINK: &str = "test_dir_fs";
@@ -65,6 +71,62 @@ impl Default for Config {
             web_file_name: NAME_WEB_FILE.to_string(),
             net_path_name: NAME_FILE_NET_PATH.to_string(),
             host: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+enum Msg {
+    Drag,
+}
+impl Msg {
+    fn to_init() -> &'static str {
+        // 第一个参数时TS中的属性名，第二个参数是值
+        "{DRAG: 'Drag'}"
+    }
+}
+
+impl TryFrom<String> for Msg {
+    type Error = Err;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "Drag" => Ok(Self::Drag),
+            _ => Err(newerr!("unknown msg")),
+        }
+    }
+}
+
+/// 用于初始化注入参数
+#[derive(Default_With, With)]
+pub struct InitJs {
+    #[default_with(no_default)]
+    server_url: String,
+    is_web: bool,
+}
+
+impl InitJs {
+    pub fn init(self) -> impl for<'a> Fn(WryWebViewBuilder<'a>) -> WryWebViewBuilder<'a> {
+        let init = format!(
+            "window.SERVER_URL = '{}';window.IS_WEB = {};window.MSG = {};",
+            self.server_url,
+            self.is_web,
+            Msg::to_init()
+        );
+        info!("initialization_script: {init:?}");
+        move |wb| {
+            wb.with_initialization_script(&init)
+                .with_ipc_handler(|req| {
+                    let msg = req.body().to_string();
+                    if let Ok(msg) = Msg::try_from(msg) {
+                        info!("msg: {:?}", msg);
+                        match msg {
+                            Msg::Drag => {
+                                let _ = WM.find("main", |w: &TaoWindow| w.drag_window());
+                            }
+                        }
+                    }
+                })
         }
     }
 }

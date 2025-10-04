@@ -70,6 +70,12 @@ impl WindowRunner {
                 Event::WindowEvent {
                     event, window_id, ..
                 } => match event {
+                    WindowEvent::Focused(focused) => {
+                        info!("Event::WindowEvent::Focused: {window_id:?} {focused:?}");
+                        {
+                            self.wm.borrow_mut().set_curr_focused(window_id,focused);
+                        }
+                    },
                     WindowEvent::CloseRequested => {
                         info!("Event::WindowEvent::CloseRequested: {window_id:?}");
                         let is_empty = {
@@ -99,6 +105,7 @@ impl WindowRunner {
                     match event {
                         UserEvent::Create(wc) => {
                             if let Ok(w_ref) = Self::create_window_impl(target, &wc) {
+                                w_ref.window.set_focus();
                                 let _ = self.wm.borrow_mut().insert_created_window(w_ref);
                             }
                         }

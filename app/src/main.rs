@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // 禁用控制台窗口
 
 use crate::config::Config;
+use crate::config::InitJs;
+use crate::search::SearchItem;
 use axum::Router;
 #[cfg(not(debug_assertions))]
 use include_dir::{Dir, include_dir};
@@ -12,10 +14,13 @@ use std::{
 };
 use tokio::{net::TcpListener, sync::Notify};
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use window::WindowManager;
+use window::KeyListenerExt;
+use window::WindowConfig;
+use window::{TaoWindowBuilder, WindowManager};
 
 mod config;
 mod router;
+mod search;
 mod utils;
 
 #[derive(Clone)]
@@ -42,11 +47,13 @@ async fn main() -> Result<()> {
 
     info!("listening on {url}, {url}/api, {url}/{net_path_name}");
 
+    let app_state = AppState::new(PluginManager::new(Arc::new(config)));
+
     let app = Router::new()
         .nest("/api", router::api::routes())
         .nest_service(&format!("/{net_path_name}"), ServeDir::new(&net_base_dir))
         .layer(CorsLayer::permissive())
-        .with_state(AppState::new(PluginManager::new(Arc::new(config))));
+        .with_state(app_state);
 
     let sd1 = Arc::new(Notify::new());
     let sd2 = sd1.clone();
@@ -63,38 +70,56 @@ async fn main() -> Result<()> {
         info!("server exit");
     });
 
-    {
+    let page = {
         #[cfg(debug_assertions)]
         {
             let debug_server = "http://127.0.0.1:5173/";
             info!("server dir: {net_base_dir:?}; {debug_server}");
-            WM.create_with_url("main", debug_server)?
+            debug_server
         }
         #[cfg(not(debug_assertions))]
         {
-            use libcommon::newerr;
-            let html: &str = RES_DIR
-                .get_file("index.html")
-                .ok_or(newerr!("index.html not found in RES_DIR"))?
-                .contents_utf8()
-                .ok_or(newerr!("index.html contents_utf8 not found in RES_DIR"))?;
-            let regex = regex::Regex::new(r#"(window\.SERVER_URL=")[^"]*(")"#)?;
-            let html = regex.replace(html, &format!("window.SERVER_URL=\"{}\"", url));
-            WM.create_with_html("main", html)?
+            RES_DIR.get_file("index.html")?.contents_utf8()?
         }
-    }
-    .on_close(move || sd2.notify_one())
-    .run()
-}
+    };
 
-impl From<AppState> for Arc<PluginManager<Config>> {
-    fn from(val: AppState) -> Self {
-        val.pm
-    }
+    let with_w = |w: TaoWindowBuilder| w.with_decorations(false).with_always_on_top(true);
+    let cfg = WindowConfig::new("main")
+        .with_page(page)
+        .with_size((816, 56 * 7))
+        .with_webview(InitJs::default_with(url).init())
+        .with_window(with_w);
+
+    WM.create(cfg)?
+        .register_key_listener("all_key".to_string(), |key| {
+            // todo 改为系统级别监听而不是窗口级
+            info!("key: {key}, curr: {:?}", WM.curr().is_some());
+            match key {
+                "Ctrl+Ctrl" => {
+                    if let Some(w) = WM.find_window("main") {
+                        if w.is_show().unwrap_or(false) {
+                            w.hide();
+                        } else {
+                            w.show();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        })?
+        .on_close(move || sd2.notify_one())
+        .run()
 }
 
 impl AppState {
     pub fn new(pm: PluginManager<Config>) -> Self {
+        let pm = pm.set_on_update(|p| {
+            search::on_update(
+                p.into_iter()
+                    .map(|p| SearchItem::new(&p.id, &p.info.name, p.info.keyword.clone()))
+                    .collect::<Vec<_>>(),
+            )
+        });
         Self { pm: Arc::new(pm) }
     }
 }

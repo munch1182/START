@@ -42,6 +42,16 @@ impl WindowConfig {
         }
     }
 
+    pub fn with_page(mut self, page: impl ToString) -> Self {
+        let page = page.to_string();
+        if page.starts_with("http://") || page.starts_with("https://") {
+            self.url = Some(page);
+        } else {
+            self.html = Some(page);
+        }
+        self
+    }
+
     #[inline]
     pub fn with_window<F>(mut self, f: F) -> Self
     where

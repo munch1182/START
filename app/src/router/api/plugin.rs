@@ -1,4 +1,4 @@
-use crate::{config::Config, utils::opt_json::OptJson};
+use crate::{config::Config, utils::opt::OptParam};
 use axum::{
     Json, Router,
     body::Body,
@@ -44,7 +44,7 @@ async fn plugin<PM: PluginManagerState>(
 
 async fn scan<PM: PluginManagerState>(
     State(app): State<PM>,
-    OptJson(q): OptJson<ScanQ>,
+    OptParam(q): OptParam<ScanQ>,
 ) -> Resp<Vec<String>> {
     let pm = get_pm(app);
     let query = q
@@ -55,12 +55,14 @@ async fn scan<PM: PluginManagerState>(
 
 async fn list<PM: PluginManagerState>(State(app): State<PM>) -> Resp<Vec<ListR>> {
     get_pm(app)
-        .get(|i| ListR {
+        .into_iter()
+        .map(|i| ListR {
             id: i.id.clone(),
             name: i.info.name.clone(),
             keyword: i.info.keyword.clone(),
             version: i.info.version.clone(),
         })
+        .collect::<Vec<_>>()
         .into()
 }
 
