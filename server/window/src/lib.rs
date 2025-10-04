@@ -1,12 +1,10 @@
 mod config;
 mod event;
-mod key;
 mod runner;
 
 use crate::runner::WindowRunner;
 pub use config::*;
 pub use event::*;
-pub use key::*;
 use libcommon::prelude::*;
 use parking_lot::{Mutex, RwLock};
 use std::sync::Arc;
@@ -27,8 +25,6 @@ pub struct WindowManager {
     pub(crate) proxy: Arc<RwLock<Option<EventLoopProxy<UserEvent>>>>,
     /// 未运行前的创建窗口
     pub(crate) pending: RefCell<Vec<WindowConfig>>,
-    /// 按键管理: 当前问题：当按下tab切换窗口后，将无法获取到按键事件
-    pub(crate) key: Arc<RwLock<KeyHelper>>,
     /// 当前具有焦点的窗口
     pub(crate) curr: Arc<Mutex<Option<WindowId>>>,
 }
@@ -112,7 +108,7 @@ impl WindowManager {
     }
 
     /// 窗口添加成功，添加到管理器中
-    pub(crate) fn insert_created_window(&self, w_ref: WindowRef) -> Result<()> {
+    pub(crate) fn insert_created_window(&self, w_ref: WindowRef) {
         let id = w_ref.id;
         let label = w_ref.label.clone();
         {
@@ -121,15 +117,16 @@ impl WindowManager {
         {
             self.ids.write().insert(label, id);
         }
-        Ok(())
     }
 
     pub(crate) fn set_curr_focused(&self, id: WindowId, focused: bool) {
-        let mut curr = self.curr.lock();
-        if focused {
-            *curr = Some(id);
-        } else if *curr == Some(id) {
-            *curr = None;
+        {
+            let mut curr = self.curr.lock();
+            if focused {
+                *curr = Some(id);
+            } else if *curr == Some(id) {
+                *curr = None;
+            }
         }
     }
 }
@@ -283,24 +280,5 @@ impl WindowOpExt<WindowId> for &WindowManager {
 
     fn is_show(&self, id: WindowId) -> Option<bool> {
         self.find(id, |e: &TaoWindow| e.is_visible())
-    }
-}
-
-impl KeyListenerExt for &WindowManager {
-    #[inline]
-    fn check(self, key: String) -> bool {
-        self.key.read().check(key)
-    }
-
-    #[inline]
-    fn register_key_listener(self, key: String, lis: impl Fn(&str) + 'static) -> Result<Self> {
-        self.key.write().register_key_listener(key, lis)?;
-        Ok(self)
-    }
-
-    #[inline]
-    fn unregister_key_listener(self, key: &str) -> Result<Self> {
-        self.key.write().unregister_key_listener(key)?;
-        Ok(self)
     }
 }

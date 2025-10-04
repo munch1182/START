@@ -1,6 +1,6 @@
 use libcommon::prelude::*;
 use std::sync::LazyLock;
-use window::{KeyListenerExt, TaoWindow, WindowConfig, WindowFindExt, WindowManager, WryWebView};
+use window::{TaoWindow, WindowConfig, WindowFindExt, WindowManager};
 use wry::http::Request;
 
 static WM: LazyLock<WindowManager> = LazyLock::new(WindowManager::default);
@@ -29,13 +29,7 @@ fn main() -> Result<()> {
             wb.with_ipc_handler(with_ipc)
                 .with_initialization_script(init())
         });
-    WM.create(cfg)?
-        .register_key_listener("main".to_string(), |s| {
-            WM.find("main", |w: &WryWebView| {
-                w.evaluate_script(&format!("onKey('{s}')"))
-            });
-        })?
-        .run()
+    WM.create(cfg)?.run()
 }
 
 fn init() -> &'static str {

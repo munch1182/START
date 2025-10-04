@@ -16,6 +16,8 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "cors"] }
 include_dir = "0.7"
 parking_lot = "0.12"
+fuzzy-matcher = "0.3"
+pinyin = "0.10"
 
 plugin_d = { path = "../server/plugin_d" }
 plugin_manager = { path = "../server/plugin_manager" }

@@ -2,7 +2,7 @@ use crate::{UserEvent, WindowConfig, WindowManager, WindowOpExt, WindowRef};
 use libcommon::prelude::{Result, info};
 use std::{cell::RefCell, rc::Rc};
 use tao::{
-    event::{DeviceEvent, Event, RawKeyEvent, StartCause, WindowEvent},
+    event::{Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::WindowBuilder,
 };
@@ -106,7 +106,7 @@ impl WindowRunner {
                         UserEvent::Create(wc) => {
                             if let Ok(w_ref) = Self::create_window_impl(target, &wc) {
                                 w_ref.window.set_focus();
-                                let _ = self.wm.borrow_mut().insert_created_window(w_ref);
+                                self.wm.borrow_mut().insert_created_window(w_ref);
                             }
                         }
                         UserEvent::Exit => {
@@ -114,11 +114,6 @@ impl WindowRunner {
                             *control_flow = ControlFlow::Exit;
                         }
                     }
-                }
-                Event::DeviceEvent { event:DeviceEvent::Key(RawKeyEvent { physical_key, state, .. }), .. } =>{
-                    // info!("key: {physical_key:?}, state: {state:?}");
-                    let wm = self.wm.borrow();
-                    wm.key.read().on_key(physical_key, state);
                 }
                 _ => {}
             }
