@@ -15,7 +15,7 @@ reqwest = "0.12"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "cors"] }
 include_dir = "0.7"
-regex = "1.11"
+parking_lot = "0.12"
 
 plugin_d = { path = "../server/plugin_d" }
 plugin_manager = { path = "../server/plugin_manager" }

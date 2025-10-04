@@ -119,7 +119,7 @@ impl InitJs {
                 .with_ipc_handler(|req| {
                     let msg = req.body().to_string();
                     if let Ok(msg) = Msg::try_from(msg) {
-                        info!("msg: {:?}", msg);
+                        info!("IPC msg: {:?}", msg);
                         match msg {
                             Msg::Drag => {
                                 let _ = WM.find("main", |w: &TaoWindow| w.drag_window());

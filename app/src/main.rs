@@ -14,7 +14,6 @@ use std::{
 };
 use tokio::{net::TcpListener, sync::Notify};
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use window::KeyListenerExt;
 use window::WindowConfig;
 use window::{TaoWindowBuilder, WindowManager};
 
@@ -90,25 +89,7 @@ async fn main() -> Result<()> {
         .with_webview(InitJs::default_with(url).init())
         .with_window(with_w);
 
-    WM.create(cfg)?
-        .register_key_listener("all_key".to_string(), |key| {
-            // todo 改为系统级别监听而不是窗口级
-            info!("key: {key}, curr: {:?}", WM.curr().is_some());
-            match key {
-                "Ctrl+Ctrl" => {
-                    if let Some(w) = WM.find_window("main") {
-                        if w.is_show().unwrap_or(false) {
-                            w.hide();
-                        } else {
-                            w.show();
-                        }
-                    }
-                }
-                _ => {}
-            }
-        })?
-        .on_close(move || sd2.notify_one())
-        .run()
+    WM.create(cfg)?.on_close(move || sd2.notify_one()).run()
 }
 
 impl AppState {

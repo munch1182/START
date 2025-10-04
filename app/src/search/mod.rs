@@ -1,6 +1,7 @@
 use libcommon::prelude::{debug, trace};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock};
 
 static SEARCH: LazyLock<SearchEngine> = LazyLock::new(Default::default);
 
@@ -16,9 +17,7 @@ pub fn search(word: Option<String>) -> Vec<SearchItem> {
 
 pub fn on_update(items: Vec<SearchItem>) {
     debug!("updating search items {}", items.len());
-    if let Ok(mut data) = SEARCH.data.write() {
-        *data = items;
-    }
+    *SEARCH.data.write() = items;
 }
 
 #[derive(Debug)]

@@ -43,16 +43,6 @@ impl Default for KeyComboDetector {
     }
 }
 
-impl KeyHelper {
-    pub(crate) fn set_callback(&self) {
-        // self.combo_detector.borrow_mut().callback = Some(Box::new(|combo| {
-        //     for ele in self.combo_handle.borrow().values() {
-        //         ele(combo.clone());
-        //     }
-        // }));
-    }
-}
-
 impl Drop for KeyHelper {
     fn drop(&mut self) {
         self.combo_handle.borrow_mut().clear();

@@ -42,6 +42,9 @@ impl WindowConfig {
         }
     }
 
+    /// 设置窗口源
+    ///
+    /// 如果`page`以`http://`或`https://`开头，则作为URL加载，否则作为本地文件或html字符串加载
     pub fn with_page(mut self, page: impl ToString) -> Self {
         let page = page.to_string();
         if page.starts_with("http://") || page.starts_with("https://") {

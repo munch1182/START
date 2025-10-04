@@ -10,6 +10,7 @@ use libcommon::{
 };
 use libloading::{Library, Symbol};
 use lru::LruCache;
+use parking_lot::{Mutex, RwLock};
 use plugin_d::{NAME_HANLE, PluginInfo, PluginRes, PluginResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,7 +19,7 @@ use std::{
     fs,
     num::NonZero,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, RwLock},
+    sync::Arc,
 };
 
 pub type PluginHandleFn = fn(String, Request<Body>) -> PluginResult;
@@ -52,14 +53,12 @@ impl<CONFIG: PluginManagerConfig> IntoIterator for &PluginManager<CONFIG> {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        if let Ok(plugins) = self.plugins.read() {
-            return plugins
-                .values()
-                .map(|p| p.info.clone())
-                .collect::<Vec<_>>()
-                .into_iter();
-        }
-        vec![].into_iter()
+        self.plugins
+            .read()
+            .values()
+            .map(|p| p.info.clone())
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }
 
@@ -134,16 +133,12 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
     }
 
     pub fn set_on_update(self, f: impl Fn(&Self) + 'static) -> Self {
-        if let Ok(mut on_update) = self.on_update.write() {
-            *on_update = Some(Box::new(f));
-        }
+        *self.on_update.write() = Some(Box::new(f));
         self
     }
 
     fn call_update(&self) {
-        if let Ok(on_update) = self.on_update.write()
-            && let Some(f) = on_update.as_ref()
-        {
+        if let Some(f) = self.on_update.write().as_ref() {
             f(self);
         }
     }
@@ -153,13 +148,13 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
     where
         MAP: Fn(&PluginHandle) -> R,
     {
-        self.plugins.read().unwrap().get(id).map(map)
+        self.plugins.read().get(id).map(map)
     }
 
     /// 移除并卸载插件
     pub fn remove(&self, id: &PluginId) -> Option<String> {
-        self.fn_caches.lock().ok()?.pop(id);
-        if let Some(plugin) = self.plugins.write().ok()?.remove(id) {
+        self.fn_caches.lock().pop(id);
+        if let Some(plugin) = self.plugins.write().remove(id) {
             info!("Plugin {id} removed");
             let name = plugin.info.info.name.clone();
             drop(plugin);
@@ -174,8 +169,7 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
     /// 需要尽快释放锁
     pub async fn invoke(&self, id: &PluginId, path: String, req: Request<Body>) -> Result<Value> {
         {
-            let plugins = self.plugins.read().newerr()?;
-            if !plugins.contains_key(id) {
+            if !self.plugins.read().contains_key(id) {
                 return Err(newerr!("Plugin {id} not found"));
             }
         }
@@ -185,16 +179,15 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
     async fn get_or_load_handler(&self, id: &PluginId) -> Result<PluginHandleFn> {
         // 先检查缓存
         {
-            let mut caches = self.fn_caches.lock().newerr()?;
-            if let Some(handler) = caches.get(id).copied() {
+            if let Some(handler) = self.fn_caches.lock().get(id).copied() {
                 return Ok(handler);
             }
         }
 
         // 缓存中没有，加载并缓存
         let handler = {
-            let plugins = self.plugins.read().newerr()?;
-            let plugin = plugins.get(id).unwrap();
+            let plugins = self.plugins.read();
+            let plugin = plugins.get(id).newerr()?;
             unsafe { plugin.lib.get(NAME_HANLE) }
                 .map(|sym: Symbol<PluginHandleFn>| *sym)
                 .map_err(|e| newerr!(e))?
@@ -202,8 +195,7 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
 
         // 放入缓存
         {
-            let mut caches = self.fn_caches.lock().newerr()?;
-            caches.put(id.clone(), handler);
+            self.fn_caches.lock().put(id.clone(), handler);
         }
 
         Ok(handler)
@@ -217,7 +209,7 @@ impl<CONFIG: PluginManagerConfig + Send + Sync> PluginManager<CONFIG> {
                 let info = PluginInfoWrapper::default_with(id.clone(), i).with_info_net(info_net);
                 let (k, v) = (id.clone(), PluginHandle::new(info, library));
                 {
-                    self.plugins.write().newerr()?.insert(k, v);
+                    self.plugins.write().insert(k, v);
                 }
                 Ok(id)
             }

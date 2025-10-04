@@ -118,7 +118,7 @@ impl WindowRunner {
                 Event::DeviceEvent { event:DeviceEvent::Key(RawKeyEvent { physical_key, state, .. }), .. } =>{
                     // info!("key: {physical_key:?}, state: {state:?}");
                     let wm = self.wm.borrow();
-                    let _ = wm.key.read().map(|key| key.on_key(physical_key, state));
+                    wm.key.read().on_key(physical_key, state);
                 }
                 _ => {}
             }

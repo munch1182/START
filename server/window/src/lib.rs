@@ -8,11 +8,9 @@ pub use config::*;
 pub use event::*;
 pub use key::*;
 use libcommon::prelude::*;
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    sync::{Arc, Mutex, RwLock},
-};
+use parking_lot::{Mutex, RwLock};
+use std::sync::Arc;
+use std::{cell::RefCell, collections::HashMap};
 pub use tao::window::Window as TaoWindow;
 pub use tao::window::WindowBuilder as TaoWindowBuilder;
 use tao::{event_loop::EventLoopProxy, window::WindowId};
@@ -41,12 +39,12 @@ unsafe impl Sync for WindowManager {}
 impl WindowManager {
     /// 判断当前是否有窗口
     pub fn is_empty(&self) -> bool {
-        self.ids.read().map(|e| e.is_empty()).unwrap_or_default()
+        self.ids.read().is_empty()
     }
 
     /// 查找窗口id
     pub(crate) fn find_id(&self, label: &str) -> Option<WindowId> {
-        self.ids.read().newerr().ok()?.get(label).cloned()
+        self.ids.read().get(label).cloned()
     }
 
     pub fn find_window<'a>(&'a self, label: &'a str) -> Option<Window<'a>> {
@@ -54,8 +52,8 @@ impl WindowManager {
     }
 
     pub fn curr<'a>(&'a self) -> Option<Window<'a>> {
-        let curr = { self.curr.lock().ok()?.as_ref().cloned() }?;
-        let label = { self.wms.read().ok()?.get(&curr)?.label.clone() };
+        let curr = { self.curr.lock().as_ref().cloned() }?;
+        let label = { self.wms.read().get(&curr)?.label.clone() };
         let window = Window {
             id: curr,
             label,
@@ -75,7 +73,7 @@ impl WindowManager {
 
     /// 创建窗口
     pub fn create(&self, config: WindowConfig) -> Result<&Self> {
-        let p = self.proxy.read().newerr()?;
+        let p = self.proxy.read();
         if let Some(proxy) = { p.as_ref() } {
             proxy.send_event(UserEvent::Create(config))?;
         } else {
@@ -87,7 +85,7 @@ impl WindowManager {
     /// 退出窗口系统
     pub fn exit(&self) -> Result<()> {
         {
-            let proxy = self.proxy.read().newerr()?;
+            let proxy = self.proxy.read();
             if let Some(proxy) = proxy.as_ref() {
                 proxy.send_event(UserEvent::Exit)?;
             }
@@ -97,9 +95,6 @@ impl WindowManager {
 
     /// 运行窗口系统，运行前的事件会在运行后触发
     pub fn run(&self) -> ! {
-        if let Ok(key) = self.key.read() {
-            key.set_callback()
-        }
         WindowRunner::new(self.clone()).run()
     }
 
@@ -113,9 +108,7 @@ impl WindowManager {
 
     /// 窗口运行后，设置事件代理
     pub(crate) fn setup_proxy(&self, proxy: EventLoopProxy<UserEvent>) {
-        if let Ok(mut p) = self.proxy.write() {
-            *p = Some(proxy);
-        }
+        *self.proxy.write() = Some(proxy);
     }
 
     /// 窗口添加成功，添加到管理器中
@@ -123,21 +116,20 @@ impl WindowManager {
         let id = w_ref.id;
         let label = w_ref.label.clone();
         {
-            self.wms.write().newerr()?.insert(id, w_ref);
+            self.wms.write().insert(id, w_ref);
         }
         {
-            self.ids.write().newerr()?.insert(label, id);
+            self.ids.write().insert(label, id);
         }
         Ok(())
     }
 
     pub(crate) fn set_curr_focused(&self, id: WindowId, focused: bool) {
-        if let Ok(mut curr) = self.curr.lock() {
-            if focused {
-                *curr = Some(id);
-            } else if *curr == Some(id) {
-                *curr = None;
-            }
+        let mut curr = self.curr.lock();
+        if focused {
+            *curr = Some(id);
+        } else if *curr == Some(id) {
+            *curr = None;
         }
     }
 }
@@ -208,16 +200,13 @@ pub trait WindowOpExt<ID> {
     fn close(self, id: ID) -> Option<()>;
     fn hide(self, id: ID) -> Option<()>;
     fn show(self, id: ID) -> Option<()>;
-    fn is_show(self, id: ID) -> Option<bool>;
+    fn is_show(&self, id: ID) -> Option<bool>;
 }
 
 impl<R> WindowFindExt<WindowId, WryWebView, R> for &WindowManager {
     #[inline]
     fn find(self, id: WindowId, find: impl FnOnce(&WryWebView) -> R) -> Option<R> {
-        self.wms
-            .read()
-            .ok()
-            .and_then(|e| e.get(&id).map(|e| find(&e.webview)))
+        self.wms.read().get(&id).map(|e| find(&e.webview))
     }
 }
 
@@ -232,17 +221,14 @@ impl<R> WindowFindExt<&str, WryWebView, R> for &WindowManager {
 impl<R> WindowFindExt<WindowId, WindowRef, R> for &WindowManager {
     #[inline]
     fn find(self, id: WindowId, find: impl FnOnce(&WindowRef) -> R) -> Option<R> {
-        self.wms.read().ok().and_then(|e| e.get(&id).map(find))
+        self.wms.read().get(&id).map(find)
     }
 }
 
 impl<R> WindowFindExt<WindowId, TaoWindow, R> for &WindowManager {
     #[inline]
     fn find(self, id: WindowId, find: impl FnOnce(&TaoWindow) -> R) -> Option<R> {
-        self.wms
-            .read()
-            .ok()
-            .and_then(|e| e.get(&id).map(|e| find(&e.window)))
+        self.wms.read().get(&id).map(|e| find(&e.window))
     }
 }
 
@@ -256,9 +242,9 @@ impl<R> WindowFindExt<&str, TaoWindow, R> for &WindowManager {
 
 impl WindowOpExt<&str> for &WindowManager {
     fn close(self, id: &str) -> Option<()> {
-        if let Some(id) = { self.ids.write().ok()?.remove(id) } {
+        if let Some(id) = { self.ids.write().remove(id) } {
             {
-                self.wms.write().ok()?.remove(&id);
+                self.wms.write().remove(&id);
             }
         }
         Some(())
@@ -272,16 +258,16 @@ impl WindowOpExt<&str> for &WindowManager {
         self.show(self.find_id(id)?)
     }
 
-    fn is_show(self, id: &str) -> Option<bool> {
+    fn is_show(&self, id: &str) -> Option<bool> {
         self.is_show(self.find_id(id)?)
     }
 }
 
 impl WindowOpExt<WindowId> for &WindowManager {
     fn close(self, id: WindowId) -> Option<()> {
-        if let Some(w_ref) = { self.wms.write().ok()?.remove(&id) } {
+        if let Some(w_ref) = { self.wms.write().remove(&id) } {
             {
-                self.ids.write().ok()?.remove(&w_ref.label);
+                self.ids.write().remove(&w_ref.label);
             }
         }
         Some(())
@@ -295,7 +281,7 @@ impl WindowOpExt<WindowId> for &WindowManager {
         self.find(id, |e: &TaoWindow| e.set_visible(true))
     }
 
-    fn is_show(self, id: WindowId) -> Option<bool> {
+    fn is_show(&self, id: WindowId) -> Option<bool> {
         self.find(id, |e: &TaoWindow| e.is_visible())
     }
 }
@@ -303,18 +289,18 @@ impl WindowOpExt<WindowId> for &WindowManager {
 impl KeyListenerExt for &WindowManager {
     #[inline]
     fn check(self, key: String) -> bool {
-        self.key.read().ok().map(|e| e.check(key)).unwrap_or(false)
+        self.key.read().check(key)
     }
 
     #[inline]
     fn register_key_listener(self, key: String, lis: impl Fn(&str) + 'static) -> Result<Self> {
-        self.key.write().newerr()?.register_key_listener(key, lis)?;
+        self.key.write().register_key_listener(key, lis)?;
         Ok(self)
     }
 
     #[inline]
     fn unregister_key_listener(self, key: &str) -> Result<Self> {
-        self.key.write().newerr()?.unregister_key_listener(key)?;
+        self.key.write().unregister_key_listener(key)?;
         Ok(self)
     }
 }
