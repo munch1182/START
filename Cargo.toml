@@ -8,4 +8,5 @@ members = [
     "server/plugin_manager",
     "server/plugin_d",
     "server/window",
+    "server/key",
 ]

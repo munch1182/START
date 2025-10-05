@@ -122,7 +122,8 @@
         @apply border-border outline-ring/50;
     }
 
+    /* rounded-md overflow-hidden和透明背景一起设置圆角窗口 */
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground rounded-md overflow-hidden;
     }
 }

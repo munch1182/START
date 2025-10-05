@@ -14,8 +14,11 @@ use std::{
 };
 use tokio::{net::TcpListener, sync::Notify};
 use tower_http::{cors::CorsLayer, services::ServeDir};
-use window::WindowConfig;
-use window::{TaoWindowBuilder, WindowManager};
+use window::TaoWindow;
+use window::TaoWindowExt;
+use window::WindowFindExt;
+use window::register_key;
+use window::{TaoWindowBuilder, WindowConfig, WindowManager};
 
 mod config;
 mod router;
@@ -69,6 +72,8 @@ async fn main() -> Result<()> {
         info!("server exit");
     });
 
+    listen_key();
+
     let page = {
         #[cfg(debug_assertions)]
         {
@@ -82,14 +87,38 @@ async fn main() -> Result<()> {
         }
     };
 
-    let with_w = |w: TaoWindowBuilder| w.with_decorations(false).with_always_on_top(true);
-    let cfg = WindowConfig::new("main")
+    let cfg = new_window("main")
         .with_page(page)
-        .with_size((816, 56 * 7))
-        .with_webview(InitJs::default_with(url).init())
-        .with_window(with_w);
-
+        .with_webview(InitJs::default_with(url).init());
     WM.create(cfg)?.on_close(move || sd2.notify_one()).run()
+}
+
+fn new_window(name: impl ToString) -> WindowConfig {
+    let with_w = |w: TaoWindowBuilder| {
+        w.with_decorations(false)
+            .with_always_on_top(true)
+            .with_transparent(true)
+            .with_skip_taskbar(true)
+    };
+    WindowConfig::new(name)
+        .with_size((816, 56 * 7))
+        .with_window(with_w)
+}
+
+fn listen_key() {
+    register_key("ControlLeft+ControlLeft", || {
+        if let Some(w) = WM.curr() {
+            let _ = WM.find(w.label.as_str(), |w: &TaoWindow| {
+                w.set_visible(!w.is_visible())
+            });
+        }
+    });
+    register_key("Escape", || {
+        WM.curr().and_then(|x| x.hide());
+    });
+    // window::register_any_key(|k| {
+    //     info!("key: {k:?}");
+    // });
 }
 
 impl AppState {
@@ -105,12 +134,13 @@ impl AppState {
     }
 }
 
-#[cfg(debug_assertions)]
 fn port() -> u16 {
-    12321
-}
-
-#[cfg(not(debug_assertions))]
-fn port() -> u16 {
-    0
+    #[cfg(debug_assertions)]
+    {
+        12321
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        0
+    }
 }

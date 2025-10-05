@@ -10,18 +10,4 @@ if (window.IS_WEB === undefined) {
 
 createApp(App).mount("#app");
 
-declare global {
-    interface Window {
-        SERVER_URL: string;
-        IS_WEB: boolean;
-        MSG: {
-            DRAG: string;
-        };
-        ipc: {
-            // wry已经注入代码
-            postMessage: (message: string) => void;
-        };
-    }
-}
-
 setup();

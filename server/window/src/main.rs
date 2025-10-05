@@ -1,12 +1,14 @@
+use key::register_any_key;
 use libcommon::prelude::*;
 use std::sync::LazyLock;
-use window::{TaoWindow, WindowConfig, WindowFindExt, WindowManager};
+use window::{TaoWindow, WindowConfig, WindowFindExt, WindowManager, WryWebView};
 use wry::http::Request;
 
 static WM: LazyLock<WindowManager> = LazyLock::new(WindowManager::default);
 
 #[logsetup]
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let with_ipc = |req: Request<String>| {
         info!("ipc: {:?}", req);
         let str = req.body().to_string();
@@ -23,6 +25,11 @@ fn main() -> Result<()> {
             _ => {}
         }
     };
+    register_any_key(|key| {
+        WM.find("main", |w: &WryWebView| {
+            let _ = w.evaluate_script(&format!("onKey('{key}')"));
+        });
+    });
     let cfg = WindowConfig::new("main")
         .with_html(html().to_string())
         .with_webview(move |wb| {

@@ -1,0 +1,15 @@
+[package]
+name = "key"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rdev = "0.5"
+parking_lot = "0.12"
+tokio = { version = "1.47", features = [
+    "macros",
+    "rt-multi-thread",
+], optional = true }
+
+[features]
+tokio = ["dep:tokio"]

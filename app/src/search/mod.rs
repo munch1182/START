@@ -7,14 +7,18 @@ use std::sync::{Arc, LazyLock};
 
 static SEARCH: LazyLock<SearchEngine> = LazyLock::new(Default::default);
 static FUZZY_SEARCH: LazyLock<SkimMatcherV2> = LazyLock::new(SkimMatcherV2::default);
+const COUNT_LIMIT: usize = 7;
 
 pub fn search(word: Option<String>) -> Vec<SearchItem> {
-    if let Some(s) = word
+    let mut res = if let Some(s) = word
         && !s.is_empty()
     {
-        return SEARCH.search(&s);
-    }
-    SEARCH.collect_default()
+        SEARCH.search(&s)
+    } else {
+        SEARCH.collect_default()
+    };
+    res.truncate(COUNT_LIMIT);
+    res
 }
 
 pub fn on_update(items: Vec<SearchItem>) {

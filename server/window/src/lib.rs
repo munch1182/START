@@ -1,14 +1,17 @@
 mod config;
 mod event;
 mod runner;
+mod utils;
 
 use crate::runner::WindowRunner;
 pub use config::*;
 pub use event::*;
+pub use key::*;
 use libcommon::prelude::*;
 use parking_lot::{Mutex, RwLock};
 use std::sync::Arc;
 use std::{cell::RefCell, collections::HashMap};
+pub use tao::platform::windows::WindowBuilderExtWindows as TaoWindowExt;
 pub use tao::window::Window as TaoWindow;
 pub use tao::window::WindowBuilder as TaoWindowBuilder;
 use tao::{event_loop::EventLoopProxy, window::WindowId};
@@ -27,6 +30,14 @@ pub struct WindowManager {
     pub(crate) pending: RefCell<Vec<WindowConfig>>,
     /// 当前具有焦点的窗口
     pub(crate) curr: Arc<Mutex<Option<WindowId>>>,
+    /// 回调
+    pub(crate) listeners: Arc<RwLock<Listeners>>,
+}
+
+#[derive(Default)]
+struct Listeners {
+    on_close: Option<Box<dyn FnOnce() + Send + 'static>>,
+    on_setup: Option<Box<dyn FnOnce() + Send + 'static>>,
 }
 
 unsafe impl Send for WindowManager {}
@@ -95,11 +106,20 @@ impl WindowManager {
     }
 
     /// 窗口运行后的关闭回调
-    pub fn on_close<F>(&self, on_close: F) -> WindowRunner
+    pub fn on_close<F>(&self, on_close: F) -> &Self
     where
         F: FnOnce() + Send + 'static,
     {
-        WindowRunner::new_with_on_close(self.clone(), on_close)
+        self.listeners.write().on_close = Some(Box::new(on_close));
+        self
+    }
+
+    pub fn on_setup<F>(&self, on_setup: F) -> &Self
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        self.listeners.write().on_setup = Some(Box::new(on_setup));
+        self
     }
 
     /// 窗口运行后，设置事件代理
@@ -124,9 +144,10 @@ impl WindowManager {
             let mut curr = self.curr.lock();
             if focused {
                 *curr = Some(id);
-            } else if *curr == Some(id) {
-                *curr = None;
             }
+            // else if *curr == Some(id) {
+            //     *curr = None;
+            // }
         }
     }
 }

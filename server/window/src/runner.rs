@@ -1,8 +1,10 @@
-use crate::{UserEvent, WindowConfig, WindowManager, WindowOpExt, WindowRef};
+use crate::{
+    UserEvent, WindowConfig, WindowManager, WindowOpExt, WindowRef, utils::call_on_key_from_window,
+};
 use libcommon::prelude::{Result, info};
 use std::{cell::RefCell, rc::Rc};
 use tao::{
-    event::{Event, StartCause, WindowEvent},
+    event::{DeviceEvent, Event, StartCause, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::WindowBuilder,
 };
@@ -12,7 +14,6 @@ use wry::WebViewBuilder;
 pub struct WindowRunner {
     el: EventLoop<UserEvent>,
     wm: Rc<RefCell<WindowManager>>,
-    on_close: Option<Box<dyn FnOnce() + Send>>,
 }
 
 impl WindowRunner {
@@ -20,18 +21,6 @@ impl WindowRunner {
         Self {
             el: EventLoopBuilder::with_user_event().build(),
             wm: Rc::new(RefCell::new(wm)),
-            on_close: None,
-        }
-    }
-
-    pub(crate) fn new_with_on_close<F>(wm: WindowManager, on_close: F) -> Self
-    where
-        F: FnOnce() + Send + 'static,
-    {
-        Self {
-            el: EventLoopBuilder::with_user_event().build(),
-            wm: Rc::new(RefCell::new(wm)),
-            on_close: Some(Box::new(on_close)),
         }
     }
 
@@ -53,7 +42,7 @@ impl WindowRunner {
     }
 
     /// 运行窗口系统
-    pub fn run(mut self) -> ! {
+    pub fn run(self) -> ! {
         {
             let wm = self.wm.borrow();
             let proxy = self.el.create_proxy();
@@ -67,15 +56,22 @@ impl WindowRunner {
             *control_flow = ControlFlow::Wait;
             // info!("event: {event:?}");
             match event {
+                Event::DeviceEvent {
+                    event: DeviceEvent::Key(key),
+                    ..
+                } => {
+                    // info!("Event::DeviceEvent: {key:?}");
+                    call_on_key_from_window(&key);
+                }
                 Event::WindowEvent {
                     event, window_id, ..
                 } => match event {
                     WindowEvent::Focused(focused) => {
-                        info!("Event::WindowEvent::Focused: {window_id:?} {focused:?}");
+                        // info!("Event::WindowEvent::Focused: {window_id:?} {focused:?}");
                         {
-                            self.wm.borrow_mut().set_curr_focused(window_id,focused);
+                            self.wm.borrow().set_curr_focused(window_id, focused);
                         }
-                    },
+                    }
                     WindowEvent::CloseRequested => {
                         info!("Event::WindowEvent::CloseRequested: {window_id:?}");
                         let is_empty = {
@@ -84,7 +80,8 @@ impl WindowRunner {
                             wm.is_empty()
                         };
                         if is_empty {
-                            if let Some(on_close) = self.on_close.take() {
+                            let on_close = { self.wm.borrow().listeners.write().on_close.take() };
+                            if let Some(on_close) = on_close {
                                 info!("Call on_close()");
                                 on_close();
                             }
@@ -92,21 +89,29 @@ impl WindowRunner {
                             *control_flow = ControlFlow::Exit;
                         }
                     }
-                    WindowEvent::KeyboardInput { device_id, event, is_synthetic, .. } => {
-                        info!("Event::WindowEvent: {window_id:?} {device_id:?} {event:?} {is_synthetic:?}");
-                    }
+
                     _ => {}
                 },
+                Event::RedrawEventsCleared => {}
+                Event::MainEventsCleared => {}
                 Event::NewEvents(StartCause::Init) => {
                     info!("Event::NewEvents: INIT");
+                    if let Some(on_setup) = { self.wm.borrow().listeners.write().on_setup.take() } {
+                        info!("Call on_setup()");
+                        on_setup();
+                    }
                 }
                 Event::UserEvent(event) => {
                     info!("Event::UserEvent: {event:?}");
                     match event {
                         UserEvent::Create(wc) => {
                             if let Ok(w_ref) = Self::create_window_impl(target, &wc) {
-                                w_ref.window.set_focus();
-                                self.wm.borrow_mut().insert_created_window(w_ref);
+                                {
+                                    self.wm.borrow().set_curr_focused(w_ref.id, true);
+                                }
+                                {
+                                    self.wm.borrow().insert_created_window(w_ref);
+                                }
                             }
                         }
                         UserEvent::Exit => {
