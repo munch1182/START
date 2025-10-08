@@ -34,14 +34,31 @@ pub struct PluginInfo {
     /// 插件第二个关键字
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keyword: Option<String>,
+    /// 插件启动页面类型，0: 作为页面的一部分显示；1: 新建窗口显示
+    pub luncher: Launcher,
     /// 插件资源路径
     pub res: PluginRes,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, With)]
 pub struct PluginRes {
+    /// 插件文件地址
     pub file: String,
+    // html文件地址
     pub html: String,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Launcher {
+    Content = 0,
+    NewWindow = 1,
+}
+
+impl Default for Launcher {
+    fn default() -> Self {
+        Self::NewWindow
+    }
 }
 
 impl std::fmt::Display for &PluginInfo {
@@ -62,6 +79,7 @@ impl PluginInfo {
             version: version.to_string(),
             keyword: None,
             res: PluginRes::new(file, html),
+            luncher: Default::default(),
         }
     }
 
@@ -71,6 +89,7 @@ impl PluginInfo {
             version: version.to_string(),
             keyword: None,
             res: PluginRes::default(),
+            luncher: Default::default(),
         }
     }
 }

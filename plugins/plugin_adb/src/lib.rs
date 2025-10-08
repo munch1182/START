@@ -5,18 +5,18 @@ use libcommon::{
     newerr,
     prelude::{ErrMapperExt, Result},
 };
-use plugin_d::{PluginInfo, PluginResult};
+use plugin_d::{Launcher, PluginInfo, PluginResult};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 mod adb;
 
 const NAME: &str = "adb";
-const VERSION: &str = "0.0.1";
+const VERSION: &str = "0.0.2";
 
 #[unsafe(no_mangle)]
 pub fn get_info() -> PluginInfo {
-    PluginInfo::default(NAME, VERSION)
+    PluginInfo::default(NAME, VERSION).with_luncher(Launcher::Content)
 }
 
 static ADB_CACHE: Mutex<Vec<String>> = Mutex::new(Vec::new());

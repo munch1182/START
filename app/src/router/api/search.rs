@@ -1,5 +1,5 @@
 use crate::{
-    search::{self, SearchItem},
+    search::{self, SearchResultItem},
     utils::opt::OptParam,
 };
 use axum::{Router, routing::get};
@@ -13,7 +13,7 @@ where
     Router::<T>::new().route("/s", get(search))
 }
 
-async fn search(OptParam(q): OptParam<Search>) -> Resp<Vec<SearchItem>> {
+async fn search(OptParam(q): OptParam<Search>) -> Resp<Vec<SearchResultItem>> {
     search::search(q.map(|q| q.q)).into()
 }
 

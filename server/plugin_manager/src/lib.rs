@@ -48,20 +48,6 @@ pub struct PluginManager<CONFIG: PluginManagerConfig> {
     pub(crate) on_update: Arc<RwLock<Option<OnUpdate<CONFIG>>>>,
 }
 
-impl<CONFIG: PluginManagerConfig> IntoIterator for &PluginManager<CONFIG> {
-    type Item = PluginInfoWrapper;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.plugins
-            .read()
-            .values()
-            .map(|p| p.info.clone())
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-}
-
 unsafe impl<CONFIG: PluginManagerConfig> Send for PluginManager<CONFIG> {}
 unsafe impl<CONFIG: PluginManagerConfig> Sync for PluginManager<CONFIG> {}
 
@@ -336,5 +322,19 @@ pub(crate) fn generate_id(name: &str) -> PluginId {
 impl std::fmt::Display for PluginInfoWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{}", self.info.name, self.info.version)
+    }
+}
+
+impl<CONFIG: PluginManagerConfig> IntoIterator for &PluginManager<CONFIG> {
+    type Item = PluginInfoWrapper;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.plugins
+            .read()
+            .values()
+            .map(|p| p.info.clone())
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }

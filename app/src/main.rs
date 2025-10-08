@@ -2,7 +2,6 @@
 
 use crate::config::Config;
 use crate::config::InitJs;
-use crate::search::SearchItem;
 use axum::Router;
 #[cfg(not(debug_assertions))]
 use include_dir::{Dir, include_dir};
@@ -124,11 +123,7 @@ fn listen_key() {
 impl AppState {
     pub fn new(pm: PluginManager<Config>) -> Self {
         let pm = pm.set_on_update(|p| {
-            search::on_update(
-                p.into_iter()
-                    .map(|p| SearchItem::new(&p.id, &p.info.name, p.info.keyword.clone()))
-                    .collect::<Vec<_>>(),
-            )
+            search::on_update(p.into_iter().map(From::from).collect::<Vec<_>>())
         });
         Self { pm: Arc::new(pm) }
     }
