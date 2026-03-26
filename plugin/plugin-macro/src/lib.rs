@@ -58,6 +58,12 @@ pub fn bridge(_args: TokenStream, input: TokenStream) -> TokenStream {
             async fn call(&self, input: ::plugin::Value) -> Result<::plugin::Value, Box<dyn std::error::Error + Send + Sync>> {
                 let err = |str: String| Box::<dyn std::error::Error + Send + Sync>::from(str);
                 let (method, params) = match input {
+                    ::plugin::Value::Array(mut tuple) => {
+                        if tuple.len() != 2 {
+                            return Err(err(format!("input must be array with 2 elements, but got {}", tuple.len())));
+                        }
+                        (tuple.remove(0), tuple.remove(0))
+                    }
                     ::plugin::Value::Object(mut map) => {
                         let method = map.remove(#NAME_METHOD).ok_or_else(|| err(format!("no {}", #NAME_METHOD)))?;
                         let params = map.remove(#NAME_PRAMAS).ok_or_else(|| err(format!("no {}", #NAME_PRAMAS)))?;

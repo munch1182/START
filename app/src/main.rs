@@ -1,6 +1,6 @@
 use libcommon::{New, newerr, prelude::*};
 use plugin::prelude::*;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use serde_json::json;
 
 #[tokio::main]
@@ -35,19 +35,12 @@ impl A {
 
     async fn mock_inject<T: DeserializeOwned, D: Serialize>(
         &self,
-        name: impl ToString,
+        name: impl ToString + Serialize,
         value: D,
     ) -> Result<T> {
-        self.call(json!(Call::new(name, json!(value))))
+        self.call(json!((name, json!(value))))
             .await
             .map_err(|e| newerr!(e))
             .and_then(|s| serde_json::from_value::<T>(s).map_err(|e| newerr!(e)))
     }
-}
-
-#[derive(New, Deserialize, Serialize)]
-struct Call {
-    #[new(from = impl ToString, to = method.to_string())]
-    method: String,
-    params: Value,
 }
