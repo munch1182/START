@@ -1,0 +1,33 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rsbuild build",
+    "dev": "rsbuild dev",
+    "format": "prettier --write .",
+    "preview": "rsbuild preview"
+  },
+  "dependencies": {
+    "@remixicon/vue": "^4.9.0",
+    "vue": "^3.5.26",
+    "wujie-vue3": "^1.0.29"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "^1.7.1",
+    "@rsbuild/plugin-vue": "^1.2.2",
+    "@tailwindcss/postcss": "^4.1.18",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^6.0.2",
+    "prettier-plugin-tailwindcss": "^0.7.2"
+  },
+  "postcss": {
+    "plugins": {
+      "@tailwindcss/postcss": {}
+    }
+  },
+  "prettier": {
+    "plugins": ["prettier-plugin-tailwindcss"]
+  }
+}

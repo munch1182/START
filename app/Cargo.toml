@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 plugin = { path = "../plugin/plugin" }
+window = { path = "../window/window" }
 libcommon = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

@@ -35,7 +35,7 @@ const NAME_PRAMAS: &str = "params";
 ///     }
 /// }
 #[proc_macro_attribute]
-pub fn bridge(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn call(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemImpl);
     let ident = &input.self_ty;
     let (generics, where_clause) = (&input.generics, &input.generics.where_clause);

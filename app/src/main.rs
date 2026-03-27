@@ -1,46 +1,33 @@
-use libcommon::{New, newerr, prelude::*};
-use plugin::prelude::*;
-use serde::{Serialize, de::DeserializeOwned};
-use serde_json::json;
+use std::process::Command;
+
+use libcommon::prelude::*;
+use window::{WindowCreateExt, WindowManager, bridge, generate};
 
 #[tokio::main]
 #[logsetup]
 async fn main() -> Result<()> {
-    let a = A::new((0, 2, 4));
-    debug!("{:?}", a);
+    #[cfg(debug_assertions)]
+    start_dev_server();
 
-    let result: u8 = a.mock_inject("call_a", a._c).await?;
-    let result2: bool = a.mock_inject("call_is_a", &a._a).await?;
-
-    debug!("{result:?}, {result2:?}");
-    Ok(())
-}
-
-#[derive(New, Debug)]
-struct A {
-    #[new(default = "A".to_string())]
-    _a: String,
-    _c: (u8, u8, u8),
+    let wm = WindowManager::default();
+    wm.create_window("main", "http://localhost:3000/")?;
+    wm.register_handler(generate!(select));
+    wm.run()
 }
 
 #[bridge]
-impl A {
-    async fn call_a(&self, i: (u8, u8, u8)) -> u8 {
-        i.1 * 2 + 1
-    }
+async fn select(id: String, name: String) -> Result<bool> {
+    debug!("select: {id:?}, {name:?}");
+    Ok(false)
+}
 
-    async fn call_is_a(&self, str: String) -> bool {
-        self._a == str
-    }
-
-    async fn mock_inject<T: DeserializeOwned, D: Serialize>(
-        &self,
-        name: impl ToString + Serialize,
-        value: D,
-    ) -> Result<T> {
-        self.call(json!((name, json!(value))))
-            .await
-            .map_err(|e| newerr!(e))
-            .and_then(|s| serde_json::from_value::<T>(s).map_err(|e| newerr!(e)))
-    }
+fn start_dev_server() {
+    #[cfg(target_os = "windows")]
+    tokio::spawn(async {
+        let result = Command::new("cmd")
+            .current_dir("./app")
+            .args(["/c pnpm run dev"])
+            .output();
+        debug!("dev server result: {result:?}");
+    });
 }

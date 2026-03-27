@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["app", "plugin/plugin", "plugin/plugin-macro"]
+members = ["app", "plugin/plugin", "plugin/plugin-macro", "window/window", "window/window-macro"]
 
 [workspace.dependencies]
 libcommon = { git = "https://github.com/munch1182/p2.git", branch = "dev", package = "libcommon" }

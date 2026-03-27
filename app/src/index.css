@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* https://tailwindcss.com/docs/theme#theme-variable-namespaces */
+@theme {
+  --spacing-navi: 10rem;
+  --color-navi: #fff;
+  --color-page: var(--color-gray-100);
+  --spacing-header: 3rem;
+  --spacing-logo: 4rem;
+  --spacing-page: 1rem;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-200/50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-gray-400/30;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
