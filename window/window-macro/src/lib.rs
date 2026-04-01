@@ -22,7 +22,7 @@ fn new_name(name: &Ident) -> Ident {
 /// 并在生成的包装函数中通过第二个参数传入。参数模式可以是 `state: WindowState<H>` 或 `WindowState(state): WindowState<H>`。
 ///
 /// # 用法
-/// ```rust
+/// ```ignore
 /// #[bridge::fun]
 /// pub fn add(a: i32, b: i32, state: WindowState<MyState>) -> std::result::Result<i32> {
 ///     // 可以使用 state 调用宿主方法
@@ -37,7 +37,7 @@ fn new_name(name: &Ident) -> Ident {
 /// ```
 ///
 /// 生成的代码：
-/// ```rust
+/// ```ignore
 /// // 原函数
 /// pub fn add(a: i32, b: i32, state: WindowState<MyState>) -> std::result::Result<i32> { ... }
 ///
@@ -45,19 +45,21 @@ fn new_name(name: &Ident) -> Ident {
 /// pub mod add {
 ///     use super::*;
 ///     pub fn _add_generate(
-///         _arg: Option<serde_json::Value>,
-///         state: WindowState<MyState>,
+///         _arg: Option<Box<serde_json::value::RawValue>>, state: WindowState<MyState>,
 ///     ) -> Pin<Box<dyn Future<Output = std::result::Result<serde_json::Value, Box<dyn std::error::Error>>> + Send>> {
 ///         Box::pin(async move {
-///             let _arg = _arg.ok_or_else(|| Box::<dyn std::error::Error>::from("need args but got none"))?;
-///             let arg = serde_json::from_value(_arg)?; //类似实现
-///             let result = super::add(arg.a, arg.b, state).await?;
-///             Ok(serde_json::json!(result))
+///             let raw = _arg.ok_or_else(|| Box::<dyn std::error::Error>::from("need args but got none"))?;
+///             #[derive(serde::Deserialize)]
+///             struct Args {
+///                 a: i32,
+///                 b: i32,
+///             }
+///             let Args { a, b } = serde_json::from_str(raw.get())?;
+///             let result = super::add(a, b, state).await?;
+///             Ok(serde_json::to_value(result).unwrap())
 ///         })
 ///     }
 /// }
-///
-/// // 无参数函数或者同步或者非Result返回函数只有内部调用的区别；
 /// ```
 #[proc_macro_attribute]
 pub fn bridge(_args: TokenStream, input: TokenStream) -> TokenStream {
@@ -97,14 +99,7 @@ fn expand(input: ItemFn) -> Result<TokenStream, syn::Error> {
     };
 
     // 生成调用原函数并包装结果的代码块
-    let call_body = build_call_body(
-        &params,
-        had_state,
-        is_async,
-        returns_result,
-        ident,
-        &state_arg_ts,
-    );
+    let call_body = build_call_body(&params, is_async, returns_result, ident, &state_arg_ts);
 
     // 生成包装函数
     let generate_name = new_name(ident);
@@ -118,7 +113,7 @@ fn expand(input: ItemFn) -> Result<TokenStream, syn::Error> {
         #input
         pub mod #ident {
             use super::*;
-            pub fn #generate_name #generics (_arg: Option<serde_json::Value>, #state_param)
+            pub fn #generate_name #generics (_arg: Option<Box<serde_json::value::RawValue>>, #state_param)
                 -> std::pin::Pin<Box<dyn Future<Output = std::result::Result<serde_json::Value, Box<dyn std::error::Error>>> + Send>>
             {
                 Box::pin(async move {
@@ -197,7 +192,6 @@ fn is_return_result(sig: &Signature) -> bool {
 /// 生成调用原函数并包装结果的代码块
 fn build_call_body(
     params: &[(Ident, &Type)],
-    had_state: bool,
     is_async: bool,
     returns_result: bool,
     fn_ident: &Ident,
@@ -216,50 +210,25 @@ fn build_call_body(
 
     // 根据参数个数生成不同的参数解析和调用代码
     if params.is_empty() {
-        // 无参数
         quote! {
             let result = super::#fn_ident(#state_arg_ts) #await_ts #try_ts;
             Ok(serde_json::json!(result))
         }
-    } else if params.len() == 1 {
-        // 单个参数，作为对象的一个字段提取
-        let (name, ty) = &params[0];
-        let state_sep = if had_state {
-            quote! { , }
-        } else {
-            quote! {}
-        };
-        quote! {
-            let _arg = _arg.ok_or_else(|| Box::<dyn std::error::Error>::from("need args but got none"))?;
-            let #name: #ty = match _arg {
-                serde_json::Value::Object(mut map) => {
-                    let arg = map.remove(stringify!(#name))
-                        .ok_or_else(|| Box::<dyn std::error::Error>::from(concat!("missing field: ", stringify!(#name))))?;
-                    serde_json::from_value(arg)?
-                }
-                _ => return Err(Box::<dyn std::error::Error>::from("payload must be an object")),
-            };
-            let result = super::#fn_ident(#name #state_sep #state_arg_ts) #await_ts #try_ts;
-            Ok(serde_json::json!(result))
-        }
     } else {
-        // 多个参数，从对象中提取多个字段
-        let names: Vec<_> = params.iter().map(|(name, _)| name).collect();
-        let tys: Vec<_> = params.iter().map(|(_, ty)| ty).collect();
+        // 生成 Args 结构体定义, 因为前端是统一传json的
+        let field_defs = params.iter().map(|(name, ty)| {
+            quote! { #name: #ty }
+        });
+        let field_names = params.iter().map(|(name, _)| name);
+        let field_names2 = params.iter().map(|(name, _)| name);
         quote! {
-            let _arg = _arg.ok_or_else(|| Box::<dyn std::error::Error>::from("need args but got none"))?;
-            let mut map = match _arg {
-                serde_json::Value::Object(map) => map,
-                _ => return Err(Box::<dyn std::error::Error>::from("payload must be an object")),
-            };
-            #(
-                let #names: #tys = {
-                    let value = map.remove(stringify!(#names))
-                        .ok_or_else(|| Box::<dyn std::error::Error>::from(concat!("missing field: ", stringify!(#names))))?;
-                    serde_json::from_value(value)?
-                };
-            )*
-            let result = super::#fn_ident(#(#names,)* #state_arg_ts) #await_ts #try_ts;
+            let raw = _arg.ok_or_else(|| Box::<dyn std::error::Error>::from("need args but got none"))?;
+            #[derive(serde::Deserialize)]
+            struct Args {
+                #(#field_defs,)*
+            }
+            let Args { #(#field_names,)* } = serde_json::from_str(raw.get())?;
+            let result = super::#fn_ident(#(#field_names2,)* #state_arg_ts) #await_ts #try_ts;
             Ok(serde_json::json!(result))
         }
     }

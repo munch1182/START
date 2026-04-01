@@ -1,5 +1,5 @@
 use crate::{
-    FnResult, WindowId, WindowRef, WindowState,
+    FnResult, RawMessage, WindowId, WindowRef, WindowState,
     event::{IpcReq, IpcResp, SysWindowEvent, UserEvent},
 };
 use dashmap::DashMap;
@@ -12,15 +12,14 @@ use tao::{
 };
 use wry::WebViewBuilder;
 
-pub type Message = serde_json::Value;
 /// 内部存储动态分发的类型
 type BoxedHandler<H> = Box<
-    dyn Fn(Option<Message>, WindowState<H>) -> Pin<Box<dyn Future<Output = FnResult> + Send>>
+    dyn Fn(Option<RawMessage>, WindowState<H>) -> Pin<Box<dyn Future<Output = FnResult> + Send>>
         + Send
         + Sync,
 >;
 
-pub struct WindowManager<H: Send> {
+pub struct WindowManager<H> {
     wm: DashMap<WindowId, WindowRef>,
     event: EventLoop<UserEvent>,
     handlers: Arc<DashMap<String, Arc<BoxedHandler<H>>>>,
@@ -39,12 +38,12 @@ impl Default for WindowManager<()> {
 }
 
 impl<H: Send + Sync + 'static> WindowManager<H> {
-    pub fn with_state(state: H) -> Self {
+    pub fn with_state(state: Arc<H>) -> Self {
         Self {
             wm: DashMap::new(),
             event: EventLoopBuilder::with_user_event().build(),
             handlers: Arc::new(DashMap::new()),
-            state: WindowState(state.into()),
+            state: WindowState(state),
         }
     }
 
@@ -69,7 +68,7 @@ impl<H: Send + Sync + 'static> WindowManager<H> {
                             Ok(req) => req,
                             Err(e) => return warn!("Failed to parse ipc message: {e}, ignore."),
                         };
-                        debug!("receiver IpcMessage: {ipcreq:?}");
+                        trace!("receiver IpcMessage: {ipcreq:?}");
                         let cmd = ipcreq.command;
                         let Some(fun) = self.handlers.get(&cmd).map(|v| Arc::clone(&v)) else {
                             let resp = IpcResp::err(
@@ -82,11 +81,11 @@ impl<H: Send + Sync + 'static> WindowManager<H> {
                         let proxy = proxy.clone();
                         let state = self.state.clone();
                         tokio::spawn(async move {
-                            let resp = match fun(Some(ipcreq.payload), state).await {
+                            let resp = match fun(ipcreq.payload, state).await {
                                 Ok(res) => IpcResp::ok(ipcreq.id, res),
                                 Err(e) => IpcResp::err(ipcreq.id, format!("{e:?}")),
                             };
-                            debug!("resp to: {wid}: {resp:?}");
+                            trace!("resp to: {wid}: {resp:?}");
                             UserEvent::IcpResultSend(wid, resp).send(&proxy);
                         });
                     }
@@ -131,7 +130,7 @@ impl<H: Send + Sync + 'static> WindowManager<H> {
     where
         I: IntoIterator<Item = (String, F)>,
         F: Fn(
-                Option<Message>,
+                Option<RawMessage>,
                 WindowState<H>,
             ) -> Pin<Box<dyn Future<Output = FnResult> + Send + 'static>>
             + Send

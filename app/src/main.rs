@@ -1,33 +1,44 @@
-use std::process::Command;
-
-use libcommon::prelude::*;
-use window::{WindowCreateExt, WindowManager, bridge, generate};
+mod cmd;
+mod context;
+mod server;
+use crate::{
+    cmd::{callplugin, listplugins, scan},
+    server::Server,
+};
+use libcommon::{New, prelude::*};
+use pluginmanager::PluginManager;
+use window::{WindowCreateExt, WindowManager, generate};
 
 #[tokio::main]
-#[logsetup]
+#[logsetup(level = trace)]
 async fn main() -> Result<()> {
-    #[cfg(debug_assertions)]
-    start_dev_server();
+    let server = Server::new(3030);
+    let url = server.window_url();
+    let server2 = server.clone();
 
-    let wm = WindowManager::default();
-    wm.create_window("main", "http://localhost:3000/")?;
-    wm.register_handler(generate!(select));
+    tokio::spawn(async move {
+        match server2.run().await {
+            Ok(_) => debug!("server stopped"),
+            Err(e) => error!("server start failed: {e}"),
+        }
+    });
+
+    let file_dir = std::env::current_dir()?
+        .join("dist")
+        .to_string_lossy()
+        .to_string();
+    let pm = PluginManager::default();
+    let state = AppState::new(pm, server, file_dir);
+    let wm = WindowManager::with_state(state.into());
+    wm.create_window("main", url)?;
+    wm.register_handler(generate!(listplugins, scan, callplugin));
+    info!("launch window");
     wm.run()
 }
 
-#[bridge]
-async fn select(id: String, name: String) -> Result<bool> {
-    debug!("select: {id:?}, {name:?}");
-    Ok(false)
-}
-
-fn start_dev_server() {
-    #[cfg(target_os = "windows")]
-    tokio::spawn(async {
-        let result = Command::new("cmd")
-            .current_dir("./app")
-            .args(["/c pnpm run dev"])
-            .output();
-        debug!("dev server result: {result:?}");
-    });
+#[derive(New)]
+pub struct AppState {
+    pub pm: PluginManager,
+    pub server: Server,
+    pub plugin_dir: String,
 }

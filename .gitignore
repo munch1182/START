@@ -4,3 +4,8 @@
 **/node_modules
 **/.prettierignore
 **/.prettierrc
+bridge.ts
+
+plugins
+!**/plugins/developer
+!**/plugins/developer/**

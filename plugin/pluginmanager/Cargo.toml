@@ -1,0 +1,14 @@
+[package]
+name = "pluginmanager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dashmap = { workspace = true }
+libcommon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+plugin = { path = "../plugin" }
+libloading = "0.9"
+thiserror = "2"
+async-trait = { workspace = true }

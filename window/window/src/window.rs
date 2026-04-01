@@ -11,7 +11,7 @@ use tao::{
 use wry::{WebView as WryWebView, WebViewBuilder, http::Request};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct WindowId(pub Arc<String>);
+pub struct WindowId(pub Arc<str>);
 
 pub struct WindowState<H>(pub Arc<H>);
 
@@ -60,7 +60,7 @@ impl WindowRef {
         req: Request<String>,
     ) {
         let cmd = req.body().to_string();
-        debug!("Received IPC message: {cmd}");
+        trace!("Received IPC string: {cmd}");
         if let Ok(sys) = cmd.parse::<SysWindowEvent>() {
             UserEvent::SysWindowEvent(wid.clone(), sys).send(proxy);
         } else {

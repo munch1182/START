@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Plugin } from "@bridge/bridge";
+import type { PluginInfo } from "@bridge/bridge";
 
-const props = defineProps<{ items: Plugin[]; activeId?: string }>();
+const props = defineProps<{ items: PluginInfo[]; activeId?: string }>();
 const emit = defineEmits<{ (e: "select", id: string): void }>();
 </script>
 

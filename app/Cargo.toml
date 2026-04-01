@@ -4,9 +4,29 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-plugin = { path = "../plugin/plugin" }
+pluginmanager = { path = "../plugin/pluginmanager" }
 window = { path = "../window/window" }
 libcommon = { workspace = true }
+context = { path = "../context/context" }
+host-pluginmanager = { path = "../context/host-pluginmanager" }
+
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+walkdir = "2"
+
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
+
+rust-embed = "8"
+mime_guess = "2"
+dashmap = { workspace = true }
+
+[build-dependencies]
+rs2ty = { git = "https://github.com/munch1182/p2.git", branch = "dev", package = "rs2ty", features = [
+    "ts",
+] }
+
+[features]
+use-embed = []

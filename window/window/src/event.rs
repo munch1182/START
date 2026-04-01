@@ -1,6 +1,7 @@
 use crate::{Message, WindowId};
 use libcommon::warn;
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use tao::event_loop::EventLoopProxy;
 
 #[derive(Debug)]
@@ -27,18 +28,18 @@ impl UserEvent {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub(crate) struct IpcReq {
     pub(crate) id: u32,
     pub(crate) command: String,
-    pub(crate) payload: Message,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) payload: Option<Box<RawValue>>,
 }
 
-unsafe impl Send for IpcReq {}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 pub(crate) struct IpcResp {
     pub(crate) id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) payload: Option<Message>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<String>,

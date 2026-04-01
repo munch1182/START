@@ -1,0 +1,9 @@
+[package]
+name = "host-pluginmanager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+plugin = { path = "../../plugin/plugin" }
+context = { path = "../context" }
+serde = { workspace = true }

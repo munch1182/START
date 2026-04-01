@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dashmap = "6.1.0"
+dashmap = { workspace = true }
 tao = "0.35"
 wry = "0.55"
 
 libcommon = { workspace = true }
 strum = { version = "0.28", features = ["derive"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
 tokio = { workspace = true }
 
 window-macro = { path = "../window-macro" }

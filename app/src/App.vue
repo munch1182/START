@@ -1,61 +1,66 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import Logo from "./components/Logo.vue";
 import Navi from "./components/Navi.vue";
 import WindowHeader from "./components/WindowHeader.vue";
-import type { Plugin } from "@bridge/bridge";
+import { Command, type PluginInfo } from "@bridge/bridge";
+import type WujieVue from "wujie-vue3";
 
-const plugins = ref<Plugin[]>([]);
+const plugins = ref<PluginInfo[]>([]);
 const activeId = ref<string | undefined>();
+const curr = ref<PluginInfo | undefined>();
+
+watch(activeId, async (id) => {
+  if (id) {
+    curr.value = plugins.value.find((p) => p.id === id);
+  } else {
+    curr.value = undefined;
+  }
+});
 
 onMounted(loadPlugins);
 
 async function loadPlugins() {
-  plugins.value = [
-    {
-      id: "111",
-      name: `Plugin 1`,
-      version: "0.1",
-      url: "https://picsum.photos/200/300",
-    },
-    {
-      id: "222",
-      name: `Plugin 2`,
-      version: "0.1",
-      url: "https://picsum.photos/200/300",
-    },
-    {
-      id: "333",
-      name: `Plugin 3`,
-      version: "0.1",
-      url: "https://picsum.photos/200/300",
-    },
-  ];
-  activeId.value = plugins.value[0].id;
+  await scan_home();
+}
+
+async function scan_home() {
+  const scaned = await Command.scan("C:\\Users\\MING\\ws\\START\\dist");
+  if (scaned) {
+    plugins.value = await Command.listplugins();
+    if (plugins.value[0]) select(plugins.value[0].id);
+  }
 }
 
 async function select(id: string) {
   activeId.value = id;
-  const a = await window.bridge?.send("select", { id, name: "111" });
-  console.log(a);
+  curr.value = plugins.value.find((p) => p.id === id);
 }
 </script>
 
 <template>
   <div class="flex h-full flex-row">
     <aside
-      class="bg-navi w-navi flex h-full flex-col overflow-y-hidden border-r border-gray-200"
+      class="bg-navi w-navi flex h-full shrink-0 flex-col overflow-y-hidden border-r border-gray-200 max-[300px]:hidden"
     >
       <header>
         <Logo />
       </header>
       <Navi :items="plugins" :activeId="activeId" @select="select" />
     </aside>
-    <main class="flex h-full flex-1 flex-col">
+    <main class="flex h-full w-full flex-1 flex-col">
       <header class="h-header flex">
-        <WindowHeader data-decoration />
+        <WindowHeader data-decoration class="shrink-0" />
       </header>
-      <article class="bg-page h-full flex-1"></article>
+      <article class="bg-page flex h-full w-full flex-1">
+        <WujieVue
+          class="h-full w-full"
+          v-if="curr?.path"
+          :name="curr?.name"
+          :url="curr?.path"
+          :props="{ pluginId: activeId }"
+        />
+      </article>
     </main>
   </div>
 </template>
